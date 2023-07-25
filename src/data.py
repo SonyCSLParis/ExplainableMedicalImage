@@ -13,9 +13,10 @@ n_labels = len(label_dict.keys())
 
 class MIMIC_CXR(Dataset):
     
-    def __init__(self, data_path, image_path):
+    def __init__(self, data_path, image_path, train_flag=False):
         self.data_path = data_path
         self.image_path = image_path
+        self.train_flag = train_flag
         
         self.data_dir = os.path.dirname(data_path)
         self.data = [json.loads(l) for l in open(data_path)]
@@ -24,9 +25,20 @@ class MIMIC_CXR(Dataset):
         return len(self.data)
     
     def process_image(self, image):
-        transform = transforms.Compose([transforms.RandomResizedCrop(512, scale=(0.8, 1.1), ratio=(3/4, 4/3)),   
-                                        transforms.ToTensor(),
-                                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+        if self.train_flag:
+            transform = transforms.Compose(
+                [transforms.Resize((256,256)),
+                transforms.RandomRotation(20),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
+        else:
+            transform = transforms.Compose([
+                transforms.Resize((256,256)),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
+            
         return transform(image)
     
     def __getitem__(self, idx):
@@ -44,10 +56,14 @@ class MIMIC_CXR(Dataset):
         
         # Preprocess label
         labels = re.sub("\'|\ ", "", re.sub('\"', '', sample['label'])).split(',')
-        y = torch.zeros(n_labels)
         
+        # Dealing with missing labels (DISCUSS WITH MARTINA)
+        if labels == ['']:
+            labels = ['NoFinding']
+            
+        y = torch.zeros(n_labels)
+
         for i in range(len(labels)):
             y[label_dict[labels[i]]] = 1.0
-        
             
-        return image, report, y
+        return processed_image, y
