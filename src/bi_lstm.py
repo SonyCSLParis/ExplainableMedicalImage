@@ -1,9 +1,19 @@
 import json
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, LSTM, Bidirectional, Embedding
+from keras.preprocessing.sequence import pad_sequences
+from keras.models import Sequential
+from keras.layers import Dense, LSTM, Bidirectional, Embedding
+
+def load_test_dataset(jsonl_file):
+    test_texts = []
+    test_labels = []
+    with open(jsonl_file, 'r') as file:
+        for line in file:
+            data = json.loads(line)
+            test_texts.append(data['text'])
+            test_labels.append(data['label'])
+    return test_texts, test_labels
 
 class ReportGenerator:
     def __init__(self, jsonl_file):
@@ -75,3 +85,27 @@ class ReportGenerator:
                     encoded_label[self.word_index[word]] = 1
             encoded_labels.append(encoded_label)
         return np.array(encoded_labels)
+
+def train_report_generator(train_dataset, embedding_dim=100, lstm_units=128, epochs=10, batch_size=32):
+    report_generator = ReportGenerator(train_dataset)
+    X, y = report_generator.load_dataset()
+    report_generator.build_model(embedding_dim, lstm_units)
+    report_generator.train_model(X, y, epochs, batch_size)
+    model_save_path = TRAINED_MODELS_DIR + '/text_model.pt'
+    torch.save(trained_report_generator.model.state_dict(), model_save_path)
+    return report_generator
+
+def generate_reports_and_save(trained_report_generator, test_jsonl_file, output_jsonl_file):
+    with open(test_jsonl_file, 'r') as file:
+        test_data = [json.loads(line) for line in file]
+
+    with open(output_jsonl_file, 'w') as output_file:
+        for i, data in enumerate(test_data):
+            text = data['text']
+            report = trained_report_generator.generate_report(text)
+            data['generated_report'] = report
+
+            output_file.write(json.dumps(data) + '\n')
+            print(f"Generated report for ID: {i}, Text: {text}")
+            print(f"Generated Report: {report}")
+            print("-------------------------------------------------")
