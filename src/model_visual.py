@@ -35,7 +35,7 @@ class ResNet50(nn.Module):
     
 def extract_patch_features(images, labels, patch_size, feat_size):
     # Get batch predictions
-    _, logits = image_model(images.to(device))
+    features_image, logits = image_model(images.to(device))
     preds = torch.round(torch.sigmoid(logits))
     
     batch_features = torch.zeros((images.shape[0], feat_size))
@@ -76,4 +76,4 @@ def extract_patch_features(images, labels, patch_size, feat_size):
                 features = features + features_j
                 
         batch_features[i] = features
-    return batch_features # shape [batch_size, 1024]
+    return torch.cat((batch_features, features_image), dim=1) # shape [batch_size, 2048]
