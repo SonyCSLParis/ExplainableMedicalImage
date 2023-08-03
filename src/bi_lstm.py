@@ -4,6 +4,7 @@ import tensorflow as tf
 from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from keras.layers import Dense, LSTM, Bidirectional, Embedding
+from settings import *
 
 def load_test_dataset(jsonl_file):
     test_texts = []
@@ -91,8 +92,6 @@ def train_report_generator(train_dataset, embedding_dim=100, lstm_units=128, epo
     X, y = report_generator.load_dataset()
     report_generator.build_model(embedding_dim, lstm_units)
     report_generator.train_model(X, y, epochs, batch_size)
-    model_save_path = TRAINED_MODELS_DIR + '/text_model.pt'
-    torch.save(trained_report_generator.model.state_dict(), model_save_path)
     return report_generator
 
 def generate_reports_and_save(trained_report_generator, test_jsonl_file, output_jsonl_file):
