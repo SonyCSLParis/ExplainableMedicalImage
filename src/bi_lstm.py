@@ -6,6 +6,10 @@ from keras.models import Sequential
 from keras.layers import Dense, LSTM, Bidirectional, Embedding
 from settings import *
 
+def load_text_model(model_path):
+    loaded_model = tf.keras.models.load_model(model_path)
+    return loaded_model
+
 def load_test_dataset(jsonl_file):
     test_texts = []
     test_labels = []
