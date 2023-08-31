@@ -5,12 +5,11 @@ from bi_lstm import ReportGenerator  # Import your text model related code
 from model_visual import ResNet50
 from settings import *   # Import your image model related code
 from combined import *
-# Set device
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-batch_size = 32  # Define your batch size
+batch_size = 32
 
-# Train the combined model
 trained_combined_model = train_combined_model(
     train_dataset=REPORT_PREPROCESS_DIR + '/train_output.jsonl',
     text_embedding_dim=100,
@@ -22,7 +21,6 @@ trained_combined_model = train_combined_model(
     batch_size=batch_size
 )
 
-# Test the trained combined model
 def test_combined_model(model, test_loader):
     model.eval()
     correct = 0
@@ -42,9 +40,6 @@ def test_combined_model(model, test_loader):
     accuracy = 100 * correct / total
     print(f"Test Accuracy: {accuracy:.2f}%")
 
-# Assuming you have a test dataset defined
 test_dataset = MIMIC_DIR(REPORT_PREPROCESS_DIR + '/test_output.jsonl', IMG_DIR_TEST)
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, drop_last=False)
-
-# Test the trained combined model
 test_combined_model(trained_combined_model, test_loader)
