@@ -5,6 +5,7 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from keras.layers import Dense, LSTM, Bidirectional, Embedding
 from settings import *
+from model_visual import *
 
 def load_text_model(model_path):
     loaded_model = tf.keras.models.load_model(model_path)
@@ -112,3 +113,5 @@ def generate_reports_and_save(trained_report_generator, test_jsonl_file, output_
             print(f"Generated report for ID: {i}, Text: {text}")
             print(f"Generated Report: {report}")
             print("-------------------------------------------------")
+
+

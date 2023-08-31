@@ -3,6 +3,7 @@ import torchvision
 from torch import nn
 import torch.nn.functional as F
 from collections import OrderedDict
+import numpy as np
 
 class ResNet50(nn.Module):
     def __init__(self, hid_dim, out_dim, dropout):
