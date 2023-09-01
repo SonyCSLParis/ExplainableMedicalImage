@@ -14,7 +14,7 @@ print(f'Running on device {torch.cuda.current_device()}')
 
 if __name__ == '__main__':
     print(f'Running on device {torch.cuda.current_device()}')
-    print(args.text_model.pretrained)
+    print(args.text_model)
 
     ## Text
     model_save_path = TRAINED_MODELS_DIR + '/text_model_torch.pt'
