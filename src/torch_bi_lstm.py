@@ -158,6 +158,8 @@ def generate_reports_and_save(trained_report_generator, test_jsonl_file, output_
     sequences = [torch.tensor([trained_report_generator.word_index[word] if word in trained_report_generator.word_index.keys() else -1 for word in seq]) for seq in texts]
 
     texts = pad_sequence(sequences, batch_first=True)
+    torch.save(trained_report_generator.state_dict(), TRAINED_MODELS_DIR + 'text_model_torch')
+
 
     with open(output_jsonl_file, 'w') as output_file:
         for i, data in enumerate(test_data):
