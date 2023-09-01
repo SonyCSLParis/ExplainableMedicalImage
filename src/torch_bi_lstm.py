@@ -44,7 +44,7 @@ class ReportGenerator:
         self.word_index = {}
         self.max_length = 0
         self.model = None
-        self.lr
+        self.lr = lr
         
     def build_vocab(self, texts):
         vocab = set()
