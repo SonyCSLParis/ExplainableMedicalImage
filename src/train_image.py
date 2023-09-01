@@ -12,7 +12,7 @@ from model_visual import *
 from settings import *
 
 def train_image_model(args, train_loader, valid_loader, device):
-    model = ResNet50(args.image_model.hid_dim, args.data.n_classes, args.image_model.dropout).to(device)
+    model = ResNet50(args.image_model.hid_dim, args.image_model.n_classes, args.image_model.dropout).to(device)
     model = nn.DataParallel(model)
     
     criterion = nn.BCELoss()
@@ -112,7 +112,7 @@ def train_image_model(args, train_loader, valid_loader, device):
         
 def test_image_model(args, test_loader, device):
     # Instantiate the model
-    model = ResNet50(args.image_model.hid_dim, args.data.n_classes, args.image_model.dropout).to(device)
+    model = ResNet50(args.image_model.hid_dim, args.image_model.n_classes, args.image_model.dropout).to(device)
     
     # Load pre-trained weights
     file = torch.load(TRAINED_MODELS_DIR + '/image_model.pt', map_location=device)
