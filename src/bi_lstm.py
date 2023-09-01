@@ -99,19 +99,37 @@ def train_report_generator(train_dataset, embedding_dim=100, lstm_units=128, epo
     report_generator.train_model(X, y, epochs, batch_size)
     return report_generator
 
-def generate_reports_and_save(trained_report_generator, test_jsonl_file, output_jsonl_file):
+# def generate_reports_and_save(trained_report_generator, test_jsonl_file, output_jsonl_file):
+#     with open(test_jsonl_file, 'r') as file:
+#         test_data = [json.loads(line) for line in file]
+#
+#     with open(output_jsonl_file, 'w') as output_file:
+#         for i, data in enumerate(test_data):
+#             text = data['text']
+#             report = trained_report_generator.generate_report(text)
+#             data['generated_report'] = report
+#
+#             output_file.write(json.dumps(data) + '\n')
+#             print(f"Generated report for ID: {i}, Text: {text}")
+#             print(f"Generated Report: {report}")
+#             print("-------------------------------------------------")
+
+
+def generate_features_and_save(trained_report_generator, test_jsonl_file, output_jsonl_file):
+    text_model = trained_report_generator.model
     with open(test_jsonl_file, 'r') as file:
         test_data = [json.loads(line) for line in file]
 
     with open(output_jsonl_file, 'w') as output_file:
         for i, data in enumerate(test_data):
             text = data['text']
-            report = trained_report_generator.generate_report(text)
-            data['generated_report'] = report
+            sequence = trained_report_generator.text_to_sequence(text)
+            padded_sequence = pad_sequences([sequence], maxlen=trained_report_generator.max_length, padding='post')
+            features = text_model.predict(padded_sequence)[0]
+
+            data['features'] = features.tolist()
 
             output_file.write(json.dumps(data) + '\n')
-            print(f"Generated report for ID: {i}, Text: {text}")
-            print(f"Generated Report: {report}")
+            print(f"Extracted features for ID: {i}, Text: {text}")
+            print(f"Features: {features}")
             print("-------------------------------------------------")
-
-
