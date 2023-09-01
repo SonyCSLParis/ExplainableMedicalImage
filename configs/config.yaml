@@ -1,4 +1,20 @@
 opts:
     preprocess: True
+    batch_size: 64
 
+image_model:
+    pretrained: True
+    n_classes: 14
+    hid_dim: 1024
+    dropout: 0.4
+    optim: 'adam'
+    patience: 10
+    epochs: 30
+    
+text_model:
+    pretrained: False
+    embedding_dim: 200
+    lstm_units: 512
+    lr: 1e-2
+    
 

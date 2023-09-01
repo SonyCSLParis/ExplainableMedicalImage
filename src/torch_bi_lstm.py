@@ -27,7 +27,7 @@ def load_test_dataset(jsonl_file):
 class TextGenerator(nn.Module):
     def __init__(self, vocab_size, embedding_dim, lstm_units):
         super(TextGenerator, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, lstm_units, batch_first=True, bidirectional=True)
         self.linear = nn.Linear(lstm_units * 2, vocab_size)  # Assuming bidirectional LSTM
         self.softmax = nn.Softmax(dim=1)
@@ -39,17 +39,25 @@ class TextGenerator(nn.Module):
         return self.softmax(output)
 
 class ReportGenerator:
-    def __init__(self, jsonl_file):
+    def __init__(self, jsonl_file, lr):
         self.jsonl_file = jsonl_file
         self.word_index = {}
         self.max_length = 0
         self.model = None
+        self.lr
         
     def build_vocab(self, texts):
         vocab = set()
         for words in texts:
             vocab.update(words)
-        word_to_index = {word: index for index, word in enumerate(vocab)}
+            
+        vocab_list = []
+        vocab_list.append('PAD')
+        vocab_list.append('UNK')
+        vocab_list = vocab_list + list(vocab)
+        
+        word_to_index = {word: index for index, word in enumerate(vocab_list)}
+        
         return word_to_index
 
 
@@ -77,7 +85,7 @@ class ReportGenerator:
     def build_model(self, embedding_dim, lstm_units):
         self.model = TextGenerator(len(self.word_index)+1, embedding_dim, lstm_units)
         self.model.loss_fn = nn.CrossEntropyLoss()
-        self.model.optimizer = optim.Adam(self.model.parameters())
+        self.model.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
     def train_model(self, X, y, epochs, batch_size):
         print('Training text model...')
@@ -96,24 +104,9 @@ class ReportGenerator:
     def generate_report(self, data):
         self.model.eval()
         predicted_sequence = self.model(data.unsqueeze(0)).squeeze()
-        print(predicted_sequence.shape)
         predicted_labels = [self.index_to_word(idx) for idx in np.argmax(predicted_sequence.detach().numpy(), axis=1)]
         print(predicted_labels)
         return ' '.join(predicted_labels)
-
-    def text_to_sequence(self, text):
-        tokenizer = torchtext.data.utils.get_tokenizer('basic_english')
-        texts = [tokenizer(text) for text in texts]
-
-        self.word_index = self.build_vocab(texts)
-
-        sequences = [torch.tensor([self.word_index[word] for word in seq]) for seq in texts]
-        self.max_length = max(len(seq) for seq in sequences)
-
-        padded_sequences = pad_sequence(sequences, batch_first=True)
-        tokenizer = torchtext.data.utils.get_tokenizer('basic_english')
-        sequence = [self.word_index[word] for word in tokenizer(text)]
-        return sequence
 
     def index_to_word(self, index):
         for word, idx in self.word_index.items():
@@ -133,8 +126,8 @@ class ReportGenerator:
         return torch.stack(encoded_labels)
 
 
-def train_report_generator(train_dataset, embedding_dim=100, lstm_units=128, epochs=10, batch_size=32):
-    report_generator = ReportGenerator(train_dataset)
+def train_report_generator(train_dataset, embedding_dim=100, lstm_units=128, epochs=10, batch_size=32, lr=0.1):
+    report_generator = ReportGenerator(train_dataset, lr = lr)
     X, y = report_generator.load_dataset()
     report_generator.build_model(embedding_dim, lstm_units)
     report_generator.train_model(X, y, epochs, batch_size)
@@ -155,11 +148,9 @@ def generate_reports_and_save(trained_report_generator, test_jsonl_file, output_
     tokenizer = torchtext.data.utils.get_tokenizer('basic_english')
     texts = [tokenizer(text) for text in texts]
 
-    sequences = [torch.tensor([trained_report_generator.word_index[word] if word in trained_report_generator.word_index.keys() else -1 for word in seq]) for seq in texts]
+    sequences = [torch.tensor([trained_report_generator.word_index[word] if word in trained_report_generator.word_index.keys() else trained_report_generator.word_index['UNK'] for word in seq]) for seq in texts]
 
     texts = pad_sequence(sequences, batch_first=True)
-    torch.save(trained_report_generator.state_dict(), TRAINED_MODELS_DIR + 'text_model_torch')
-
 
     with open(output_jsonl_file, 'w') as output_file:
         for i, data in enumerate(test_data):

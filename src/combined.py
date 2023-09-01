@@ -3,11 +3,12 @@ from bi_lstm import *
 from model_visual import *
 
 class CombinedModel(nn.Module):
-    def __init__(self, text_model, image_model, out_dim, image_out_dim):
+    def __init__(self, text_model, out_dim, text_out_dim, image_out_dim):
         super(CombinedModel, self).__init__()
         self.text_model = text_model
-        self.image_model = image_model
-        self.fc = nn.Linear(text_model.max_length + image_out_dim, out_dim)
+        text_model.linear = nn.Identity()
+        
+        self.fc = nn.Linear(text_out_dim + image_out_dim, out_dim)
 
     def forward(self, text_inputs, image_features):
         text_features = self.text_model(text_inputs)
@@ -31,7 +32,7 @@ def train_combined_model(train_dataset, text_embedding_dim=100, text_lstm_units=
     # train_image_dataloader = DataLoader(train_image_dataset, batch_size=batch_size, shuffle=True)
     combined_out_dim = len(text_report_generator.word_index) + 1
 
-    combined_model = CombinedModel(text_report_generator, image_model, combined_out_dim)
+    combined_model = CombinedModel(text_report_generator, image_model, combined_out_dim) # TODO cambiare parametri
 
     optimizer = torch.optim.Adam(combined_model.parameters())
     loss_fn = nn.CrossEntropyLoss()
@@ -39,7 +40,7 @@ def train_combined_model(train_dataset, text_embedding_dim=100, text_lstm_units=
     for epoch in range(epochs):
         for text_inputs, labels in train_loader:
             image_inputs, _ = next(iter(train_loader))
-            image_features, _ = image_model(image_inputs)
+            image_features, _ = image_model(image_inputs) #TODO usare extract_patch_features al posto del modello
 
             optimizer.zero_grad()
 
