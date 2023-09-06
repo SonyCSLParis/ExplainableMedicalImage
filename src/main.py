@@ -18,7 +18,7 @@ if __name__ == '__main__':
     ## Defining datasets and dataloaders
     train_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/train_output.jsonl', IMG_DIR_TRAIN, train_flag=True)
     word_idx = train_dataset.word_idx
-    vocab_size = len(word_idx)+1
+    vocab_size = len(word_idx)
     
     valid_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/valid_output.jsonl', IMG_DIR_VALID, word_idx=word_idx)
     test_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/test_output.jsonl', IMG_DIR_TEST, word_idx=word_idx)

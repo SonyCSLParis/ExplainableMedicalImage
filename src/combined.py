@@ -25,7 +25,10 @@ class CombinedModel(nn.Module):
         
         self.patch_size = args.image_model.patch_size
         self.feat_size = args.image_model.hid_dim
-        self.vocab = vocab
+        self.word_to_idx = vocab
+        self.idx_to_word = {}
+        for k in vocab.keys():
+            self.idx_to_word[vocab[k]] = k
         self.padding = torchvision.transforms.Pad(256, fill=0, padding_mode='constant')
         '''
         self.text_model = TextGenerator(vocab_size, args.text_model.embedding_dim, args.text_model.lstm_units, args.opts.n_classes)
@@ -107,17 +110,16 @@ class CombinedModel(nn.Module):
             states = None
 
             for _ in range(max_length):
-                hiddens, states = self.lstm(image_feats)
+                hiddens, states = self.lstm(image_feats.unsqueeze(1))
                 output = self.linear(hiddens.squeeze(0))
-                output = F.softmax(output, dim=0)
+                output = F.softmax(output, dim=1)
                 predicted = torch.multinomial(output, num_samples=1)
                 result_caption.append(predicted.item())
-                x = self.text_model.embedding(predicted).unsqueeze(0)
 
-                if self.vocab[predicted.item()] == "":
+                if predicted.item() == "0": # PAD token
                     break
 
-        return [self.vocab[idx] for idx in result_caption]
+        return [self.idx_to_word[idx] for idx in result_caption]
      
 def train_combined_model(args, model, train_loader, valid_loader, vocab_size, device):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.combined.lr)
