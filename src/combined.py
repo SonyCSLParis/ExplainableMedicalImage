@@ -42,6 +42,7 @@ class CombinedModel(nn.Module):
 
     def extract_patch_features(self, images):
         # Get batch predictions
+        self.image_model.eval()
         features_image, logits = self.image_model(images.to(self.device))
         preds = torch.round(torch.sigmoid(logits))
 
@@ -64,14 +65,14 @@ class CombinedModel(nn.Module):
                     cam = self.cam_extractor(j, logits.to(self.device))[0]
                     resize = torchvision.transforms.Resize((image.shape[1], image.shape[2]), interpolation=PIL.Image.BICUBIC)
                     mask = resize(cam).squeeze(0)
-                    
+
                     y, x = np.unravel_index(np.argmax(mask.cpu()), mask.shape)
 
                     # Extract most activated patch_size x patch_size patch in the original image
                     patch = image.cpu().numpy().transpose(1, 2, 0)
                     patch = patch[y:y+self.patch_size, x:x+self.patch_size]
                     patch = patch / np.max(patch)
-                    
+
                     patch = self.padding(torch.tensor(patch.transpose(2,0,1))).unsqueeze(0)
 
                     # Extract features from j_th patch
@@ -81,6 +82,7 @@ class CombinedModel(nn.Module):
                     features = features + features_j.cpu()
 
             batch_features[i] = features
+            self.image_model.train()
         return torch.cat((batch_features, features_image.cpu()), dim=1).to(self.device) # shape [batch_size, 2048]
         
     def forward(self, images, reports):
@@ -98,13 +100,14 @@ class CombinedModel(nn.Module):
     
     def generate_report(self, image, report, max_length=50):
         result_caption = []
+        
+        image_feats = self.extract_patch_features(image)
 
         with torch.no_grad():
-            image_feats = self.extract_patch_features(image)
             states = None
 
             for _ in range(max_length):
-                hiddens, states = self.text_model.lstm(image_feats)
+                hiddens, states = self.lstm(image_feats)
                 output = self.linear(hiddens.squeeze(0))
                 output = F.softmax(output, dim=0)
                 predicted = torch.multinomial(output, num_samples=1)
@@ -167,7 +170,6 @@ def index_to_word(vocab, index):
 
 def test_combined_model(args, model, test_loader, vocab, device):
     model.eval()
-    
     load = iter(test_loader)
     num_reports = 20
 
