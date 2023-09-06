@@ -53,7 +53,7 @@ if __name__ == '__main__':
     #print(f'Using trained image model with test accuracy {test_acc}')
     '''
     ## Combined
-    device = torch.device("cpu")
+    device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
     combined_model = CombinedModel(args, word_idx, vocab_size, device).to(device)
     
     if not args.combined.pretrained:
