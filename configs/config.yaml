@@ -1,20 +1,30 @@
 opts:
     preprocess: True
     batch_size: 64
+    n_classes: 14
 
 image_model:
-    pretrained: True
-    n_classes: 14
-    hid_dim: 1024
+    pretrained: False
+    hid_dim: 256
     dropout: 0.4
     optim: 'adam'
+    es_patience: 15
     patience: 10
     epochs: 30
+    lr: 1e-3
+    patch_size: 32
     
 text_model:
-    pretrained: False
+    pretrained: True
     embedding_dim: 200
-    lstm_units: 512
+    lstm_units: 256
     lr: 1e-2
+    optim: 'adam'
+    patience: 5
+    es_patience: 8
+    epochs: 10
     
-
+combined:
+    pretrained: False
+    epochs: 15
+    lr: 1e-3

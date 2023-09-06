@@ -1,44 +1,58 @@
 import gc
-
 import torch
+import torchtext
 from torch import nn
 from torch import cuda
 from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import torch.nn.functional as F
 from tqdm import tqdm
+from collections import OrderedDict
 
-from model_visual import *
 from settings import *
 
-def train_image_model(args, train_loader, valid_loader, device):
-    model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout).to(device)
+class TextGenerator(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, lstm_units, n_classes):
+        super(TextGenerator, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
+        self.lstm = nn.LSTM(embedding_dim, lstm_units, batch_first=True, bidirectional=True)
+        self.linear = nn.Linear(lstm_units * 2, n_classes)
+
+    def forward(self, x):
+        embedded = self.embedding(x)
+        self.lstm.flatten_parameters()
+        lstm_out, _ = self.lstm(embedded)
+        output = self.linear(lstm_out[:,-1,:])
+        
+        return lstm_out[:,-1,:], output
+
+def train_text_model(args, model, train_loader, valid_loader, vocab_size, device):
     model = nn.DataParallel(model)
     
     criterion = nn.BCELoss()
     
-    if args.image_model.optim == 'adam':
-        optimizer = optim.Adam(model.parameters(), args.image_model.lr)
+    if args.text_model.optim == 'adam':
+        optimizer = optim.Adam(model.parameters(), args.text_model.lr)
         
-    patience = args.image_model.patience
+    patience = args.text_model.patience
     scheduler = ReduceLROnPlateau(optimizer, 'min', patience=patience, verbose=True)
         
     # Early stopping parameters
-    es_patience = args.image_model.es_patience
+    es_patience = args.text_model.es_patience
     min_valid_loss = 10000000
     min_eta = 0
     n_stop = 0
         
     best_valid_acc = 0
-    for epoch in range(args.image_model.epochs):
+    for epoch in range(args.text_model.epochs):
         model.train()
         
         # Training step
         train_accs = []
         train_losses = []
-        for x, _, y in tqdm(train_loader):
+        for _, report, y in tqdm(train_loader):
             y = y.to(device)
-            features, logits = model(x.to(device))
+            _, logits = model(report.to(device).long())
 
             preds = torch.sigmoid(logits)
             loss = criterion(preds, y)
@@ -64,9 +78,9 @@ def train_image_model(args, train_loader, valid_loader, device):
         
         model.eval()
         with torch.no_grad():
-            for x, _, y in tqdm(valid_loader):
+            for _, report, y in tqdm(valid_loader):
                 y = y.to(device)
-                features, logits = model(x.to(device))
+                _, logits = model(report.to(device).long())
 
                 preds = torch.sigmoid(logits)
                 loss = criterion(preds, y)
@@ -90,7 +104,7 @@ def train_image_model(args, train_loader, valid_loader, device):
                     ('mean_valid_acc', mean_valid_acc),
                     ('mean_valid_loss', mean_valid_loss)
                 ])
-            torch.save(save_obj, TRAINED_MODELS_DIR + f'/image_model.pt')
+            torch.save(save_obj, TRAINED_MODELS_DIR + f'/text_model.pt')
             print('Saving the model...')
         
         gc.collect()
@@ -109,19 +123,21 @@ def train_image_model(args, train_loader, valid_loader, device):
                     n_stop +=1
             else:
                 min_eta += 1
-    return model
-
-def test_image_model(args, model, test_loader, device):          
+        
+def test_text_model(args, model, test_loader, device):   
+    # Load pre-trained weights
+    model = nn.DataParallel(model)
+              
     # Validation step
     test_accs = []
 
     model.eval()
     with torch.no_grad():
-        for x, _, y in tqdm(test_loader):
+        for _, x, y in tqdm(test_loader):
             y = y.to(device)
             
             # Get model's predictions
-            features, logits = model(x.to(device))
+            _, logits = model(x.to(device))
             preds = torch.sigmoid(logits)
 
             # Compute accuracy
@@ -131,3 +147,4 @@ def test_image_model(args, model, test_loader, device):
     mean_test_acc = sum(test_accs) / len(test_accs)
     
     return mean_test_acc
+    

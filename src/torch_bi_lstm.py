@@ -29,7 +29,7 @@ class TextGenerator(nn.Module):
         super(TextGenerator, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, lstm_units, batch_first=True, bidirectional=True)
-        self.linear = nn.Linear(lstm_units * 2, vocab_size)  # Assuming bidirectional LSTM
+        self.linear = nn.Linear(lstm_units * 2, vocab_size)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -92,6 +92,7 @@ class ReportGenerator:
         self.model.train()
         y = self.one_hot_encode_labels(y)
         for epoch in range(epochs):
+            print(f'Epoch {epoch}')
             for i in range(0, len(X), batch_size):
                 batch_X = X[i:i+batch_size]
                 batch_y = y[i:i+batch_size]
@@ -105,7 +106,6 @@ class ReportGenerator:
         self.model.eval()
         predicted_sequence = self.model(data.unsqueeze(0)).squeeze()
         predicted_labels = [self.index_to_word(idx) for idx in np.argmax(predicted_sequence.detach().numpy(), axis=1)]
-        print(predicted_labels)
         return ' '.join(predicted_labels)
 
     def index_to_word(self, index):

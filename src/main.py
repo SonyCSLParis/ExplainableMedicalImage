@@ -3,9 +3,10 @@ from omegaconf import OmegaConf
 from preprocess import *
 from settings import *
 from data import *
+from combined import *
 from model_visual import *
 from train_image import *
-from torch_bi_lstm import *
+from text_model import *
 from torch.utils.data import DataLoader
 
 args = OmegaConf.load(ROOT_DIR+'/configs/config.yaml')
@@ -13,47 +14,51 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 # print(f'Running on device {torch.cuda.current_device()}')
 
 if __name__ == '__main__':
-
-    ## Text
-    model_save_path = TRAINED_MODELS_DIR + '/text_model_torch.pt'
     
+    ## Defining datasets and dataloaders
+    train_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/train_output.jsonl', IMG_DIR_TRAIN, train_flag=True)
+    word_idx = train_dataset.word_idx
+    vocab_size = len(word_idx)+1
+    
+    valid_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/valid_output.jsonl', IMG_DIR_VALID, word_idx=word_idx)
+    test_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/test_output.jsonl', IMG_DIR_TEST, word_idx=word_idx)
+
+    train_loader = DataLoader(train_dataset, batch_size=args.opts.batch_size, shuffle=True, drop_last=True, collate_fn=collate_fn)
+    valid_loader = DataLoader(valid_dataset, batch_size=args.opts.batch_size, shuffle=False, drop_last=True, collate_fn=collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, drop_last=False, collate_fn=collate_fn)
+
+    ## Image classification from textual information
+    text_model = TextGenerator(vocab_size, args.text_model.embedding_dim, args.text_model.lstm_units, args.opts.n_classes).to(device)
+    
+    # Training the model from scratch
     if not args.text_model.pretrained:
-        trained_report_generator = train_report_generator(train_dataset=REPORT_PREPROCESS_DIR+ '/train_output.jsonl',
-                                                          embedding_dim=args.text_model.embedding_dim,
-                                                          lstm_units=args.text_model.lstm_units, epochs=1,
-                                                          batch_size=args.opts.batch_size, lr=args.text_model.lr)
-        torch.save(trained_report_generator.model.state_dict(), model_save_path)
-        
+        train_text_model(args, text_model, train_loader, valid_loader, vocab_size, device)
+    # Loading a pre-trained model
     else:
-        trained_report_generator = ReportGenerator(REPORT_PREPROCESS_DIR+ '/train_output.jsonl', lr = args.text_model.lr)
-        _,_ = trained_report_generator.load_dataset()
-        trained_report_generator.build_model(embedding_dim=args.text_model.embedding_dim, lstm_units=args.text_model.lstm_units)
-        trained_report_generator.model.load_state_dict(torch.load(model_save_path))
-        
-        
-    # test trained
-    generate_reports_and_save(trained_report_generator, REPORT_PREPROCESS_DIR+ '/test_output.jsonl', TRAINED_MODELS_DIR + '/generated_reports.json')
+        text_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/text_model.pt', map_location=device)['model'])
+    
+    #test_acc = test_text_model(args, text_model, test_loader, device)
+    #print(f'Using trained text model with test accuracy {test_acc}')
 
     ## Image Model without text
-
-    train_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/train_output.jsonl', IMG_DIR_TRAIN, train_flag=True)
-    valid_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/valid_output.jsonl', IMG_DIR_VALID)
-    test_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/test_output.jsonl', IMG_DIR_TEST)
-
-    train_loader = DataLoader(train_dataset, batch_size=args.opts.batch_size, shuffle=True, drop_last=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=args.opts.batch_size, shuffle=False, drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, drop_last=False)
-
     if not args.image_model.pretrained:
-        train_image_model(args, train_loader, valid_loader, device)
-        test_image_model(args, test_loader, device)
+        image_model = train_image_model(args, train_loader, valid_loader, device)
 
-    image_model = ResNet50(args.image_model.hid_dim, args.image_model.n_classes, args.image_model.dropout).to(device)
-    file = torch.load(TRAINED_MODELS_DIR + '/image_model.pt', map_location=device)
-    image_model.load_state_dict(file['model'])
+    else:
+        image_model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout).to(device)
+        file = torch.load(TRAINED_MODELS_DIR + '/image_model.pt', map_location=device)
+        image_model.load_state_dict(file['model'])
 
-    test_acc = test_image_model(args, test_loader, device)
-    print(f'Using trained image model with test accuracy {test_acc}')
+    #test_acc = test_image_model(args, image_model, test_loader, device)
+    #print(f'Using trained image model with test accuracy {test_acc}')
 
     ## Combined
-    combined_model = CombinedModel(trained_report_generator.model, image_model, len(trained_report_generator.word_index)+1, 2048)
+    device = torch.device("cpu")
+    combined_model = CombinedModel(args, word_idx, vocab_size, device).to(device)
+    
+    if not args.combined.pretrained:
+        combined_model = train_combined_model(args, combined_model, train_loader, valid_loader, vocab_size, device)
+    else:
+        combined_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/combined_model.pt')['model'])
+    
+    test_combined_model(args, combined_model, test_loader, word_idx, device)
