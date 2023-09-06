@@ -26,7 +26,7 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=args.opts.batch_size, shuffle=True, drop_last=True, collate_fn=collate_fn)
     valid_loader = DataLoader(valid_dataset, batch_size=args.opts.batch_size, shuffle=False, drop_last=True, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, drop_last=False, collate_fn=collate_fn)
-
+    '''
     ## Image classification from textual information
     text_model = TextGenerator(vocab_size, args.text_model.embedding_dim, args.text_model.lstm_units, args.opts.n_classes).to(device)
     
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     #test_acc = test_image_model(args, image_model, test_loader, device)
     #print(f'Using trained image model with test accuracy {test_acc}')
-
+    '''
     ## Combined
     device = torch.device("cpu")
     combined_model = CombinedModel(args, word_idx, vocab_size, device).to(device)

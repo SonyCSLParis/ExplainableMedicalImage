@@ -17,7 +17,7 @@ class CombinedModel(nn.Module):
     def __init__(self, args, vocab, vocab_size, device):
         super(CombinedModel, self).__init__()
         self.image_model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout)
-        self.image_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/image_model.pt', map_location=device)['model'])
+        self.image_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/image_model_512.pt', map_location=device)['model'])
         
         self.cam_extractor = GradCAM(self.image_model, self.image_model.model_wo_fc[7])
         
@@ -33,8 +33,8 @@ class CombinedModel(nn.Module):
         self.linear = nn.Linear(args.text_model.lstm_units*2 + args.image_model.hid_dim*2, vocab_size)
         '''
         self.embedding = nn.Embedding(vocab_size, args.text_model.embedding_dim, padding_idx=0)
-        self.lstm = nn.LSTM(args.text_model.embedding_dim+args.image_model.hid_dim*2, args.text_model.lstm_units, batch_first=True, bidirectional=True)
-        self.linear = nn.Linear(args.text_model.lstm_units * 2, args.opts.n_classes)
+        self.lstm = nn.LSTM(args.text_model.embedding_dim, args.text_model.lstm_units, batch_first=True, bidirectional=True)
+        self.linear = nn.Linear(args.text_model.lstm_units * 2, vocab_size)
         
         self.device = device        
 
@@ -82,9 +82,9 @@ class CombinedModel(nn.Module):
         return torch.cat((batch_features, features_image.cpu()), dim=1).to(self.device) # shape [batch_size, 2048]
         
     def forward(self, images, reports):
-        image_feats = self.extract_patch_features(images)
-        
+        image_feats = self.extract_patch_features(images).unsqueeze(1)
         text_feats = self.embedding(reports)
+        
         combined_feats = torch.cat((image_feats, text_feats), dim=1)
         lstm_out, _ = self.lstm(combined_feats)
         out = self.linear(lstm_out)
@@ -130,10 +130,8 @@ def train_combined_model(args, model, train_loader, valid_loader, vocab_size, de
             imgs = imgs.to(device)
             reports = reports.to(device)
 
-            outputs = model(imgs, reports)
-
-            print(outputs.shape)
-            print(reports.shape)
+            outputs = model(imgs, reports[:,:-1])
+            outputs = outputs.permute(0,2,1)
 
             loss = criterion(outputs, reports)
             
@@ -143,16 +141,14 @@ def train_combined_model(args, model, train_loader, valid_loader, vocab_size, de
                 
                 # Save the weights
                 save_obj = OrderedDict([
-                    ('model', model.module.state_dict())
+                    ('model', model.state_dict())
                 ])
                 torch.save(save_obj, TRAINED_MODELS_DIR + f'/combined_model.pt')
                 print('Saving the model...')
             else:
                 eta += 1
 
-            # print(loss.item())
-
-            running_loss += loss.item()
+            print(loss.item())
 
             optimizer.zero_grad()
             loss.backward()

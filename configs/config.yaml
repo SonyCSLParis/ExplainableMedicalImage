@@ -4,7 +4,7 @@ opts:
     n_classes: 14
 
 image_model:
-    pretrained: False
+    pretrained: True
     hid_dim: 256
     dropout: 0.4
     optim: 'adam'
@@ -16,7 +16,7 @@ image_model:
     
 text_model:
     pretrained: True
-    embedding_dim: 200
+    embedding_dim: 512
     lstm_units: 256
     lr: 1e-2
     optim: 'adam'
@@ -26,5 +26,5 @@ text_model:
     
 combined:
     pretrained: False
-    epochs: 15
+    epochs: 2
     lr: 1e-3
