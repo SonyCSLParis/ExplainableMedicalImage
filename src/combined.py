@@ -18,6 +18,8 @@ class CombinedModel(nn.Module):
         super(CombinedModel, self).__init__()
         self.image_model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout)
         self.image_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/image_model_512.pt', map_location=device)['model'])
+        for param in self.image_model.parameters():
+            param.requires_grad = True
         
         self.cam_extractor = GradCAM(self.image_model, self.image_model.model_wo_fc[7])
         
@@ -164,6 +166,8 @@ def index_to_word(vocab, index):
     return None
 
 def test_combined_model(args, model, test_loader, vocab, device):
+    model.eval()
+    
     load = iter(test_loader)
     num_reports = 20
 
