@@ -26,6 +26,7 @@ class CombinedModel(nn.Module):
         self.patch_size = args.image_model.patch_size
         self.feat_size = args.image_model.hid_dim
         self.word_to_idx = vocab
+        print(vocab)
         self.idx_to_word = {}
         for k in vocab.keys():
             self.idx_to_word[vocab[k]] = k
@@ -119,7 +120,9 @@ class CombinedModel(nn.Module):
                 if predicted.item() == "0": # PAD token
                     break
 
-        return [self.idx_to_word[idx] for idx in result_caption]
+        out = [self.idx_to_word[idx] for idx in result_caption]
+        print(out)
+        return out
      
 def train_combined_model(args, model, train_loader, valid_loader, vocab_size, device):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.combined.lr)
@@ -194,6 +197,6 @@ def test_combined_model(args, model, test_loader, vocab, device):
 
 
         print(" ".join(out))
-        print(" ".joinreport)
+        print(" ".join(report))
 
     print("AVG BLEU SCORE:", tot_score/num_reports)

@@ -53,10 +53,13 @@ class MIMIC_CXR(Dataset):
                 data = json.loads(line)
                 texts.append(data['text'])
 
+        tokenizer = torchtext.data.utils.get_tokenizer('basic_english')
+        texts = [tokenizer(text) for text in texts]
+        
         vocab = set()
         for words in texts:
             vocab.update(words)
-
+            
         vocab_list = []
         vocab_list.append('PAD')
         vocab_list.append('UNK')
