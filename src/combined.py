@@ -4,6 +4,7 @@ from model_visual import *
 from text_model import *
 from torchtext.data.metrics import bleu_score
 
+import gc
 import PIL
 import numpy as np
 from PIL import Image
@@ -14,7 +15,7 @@ from torchvision.io.image import read_image
 from torchvision.transforms.functional import normalize, resize, to_pil_image
 
 class CombinedModel(nn.Module):
-    def __init__(self, args, vocab, vocab_size, device):
+    def __init__(self, args, word_to_idx, idx_to_word, device):
         super(CombinedModel, self).__init__()
         self.image_model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout)
         self.image_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/image_model_512.pt', map_location=device)['model'])
@@ -25,11 +26,11 @@ class CombinedModel(nn.Module):
         
         self.patch_size = args.image_model.patch_size
         self.feat_size = args.image_model.hid_dim
-        self.word_to_idx = vocab
-        print(vocab)
-        self.idx_to_word = {}
-        for k in vocab.keys():
-            self.idx_to_word[vocab[k]] = k
+        
+        self.word_to_idx = word_to_idx
+        self.idx_to_word = idx_to_word
+        vocab_size = len(word_to_idx)
+        
         self.padding = torchvision.transforms.Pad(256, fill=0, padding_mode='constant')
         '''
         self.text_model = TextGenerator(vocab_size, args.text_model.embedding_dim, args.text_model.lstm_units, args.opts.n_classes)
@@ -84,6 +85,8 @@ class CombinedModel(nn.Module):
 
                     # Sum features extracted from single patches
                     features = features + features_j.cpu()
+                    
+                gc.collect()
 
             batch_features[i] = features
             self.image_model.train()
@@ -96,32 +99,36 @@ class CombinedModel(nn.Module):
         combined_feats = torch.cat((image_feats, text_feats), dim=1)
         lstm_out, _ = self.lstm(combined_feats)
         out = self.linear(lstm_out)
-        #text_feats, _ = self.text_model(reports)
         
-        #combined_feats = torch.cat((image_feats, text_feats), dim=1)
-        #out = self.linear(combined_feats)
         return out
     
-    def generate_report(self, image, report, max_length=50):
+    def generate_report(self, image, max_length=50):
         result_caption = []
         
         image_feats = self.extract_patch_features(image)
 
         with torch.no_grad():
             states = None
+            
+            start_idx = self.word_to_idx['START']
+            end_idx = self.word_to_idx['END']
+            
+            current_word = torch.tensor([start_idx]).unsqueeze(0).to(self.device)
 
             for _ in range(max_length):
-                hiddens, states = self.lstm(image_feats.unsqueeze(1))
+                text_feats = self.embedding(current_word)
+                hiddens, states = self.lstm(torch.cat((image_feats.unsqueeze(1), text_feats), dim=1))
                 output = self.linear(hiddens.squeeze(0))
-                output = F.softmax(output, dim=1)
-                predicted = torch.multinomial(output, num_samples=1)
-                result_caption.append(predicted.item())
+                output = F.softmax(output[-1, :], dim=0)
+                next_word = torch.argmax(output, dim=0)
+                result_caption.append(next_word.item())
 
-                if predicted.item() == "0": # PAD token
+                if next_word.item() == end_idx:
                     break
+                    
+                current_word = torch.cat((current_word, torch.tensor([next_word]).unsqueeze(0).to(self.device)), dim=1)
 
         out = [self.idx_to_word[idx] for idx in result_caption]
-        print(out)
         return out
      
 def train_combined_model(args, model, train_loader, valid_loader, vocab_size, device):
@@ -132,7 +139,7 @@ def train_combined_model(args, model, train_loader, valid_loader, vocab_size, de
     min_loss = 1000000
     eta = 0
     
-    print(vocab_size)
+    print(f'Size of the vocabulary: {vocab_size}')
     
     for epoch in range(args.combined.epochs):
         print(f'Epoch {epoch}')
@@ -158,25 +165,20 @@ def train_combined_model(args, model, train_loader, valid_loader, vocab_size, de
             else:
                 eta += 1
 
-            print(loss.item())
+            print(f'Loss {loss.item()}')
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
+            gc.collect()
+            
     return model
 
-            
-def index_to_word(vocab, index):
-    for word, idx in vocab.items():
-        if idx == index:
-            return word
-    return None
-
-def test_combined_model(args, model, test_loader, vocab, device):
+def test_combined_model(args, model, test_loader, word_to_idx, idx_to_word, device):
     model.eval()
     load = iter(test_loader)
-    num_reports = 20
+    num_reports = 1
 
     tot_score = 0
 
@@ -186,17 +188,19 @@ def test_combined_model(args, model, test_loader, vocab, device):
         image, report, _ = next(load)
         image = image.to(device)
 
-        out = model.generate_report(image, vocab, max_length=100)
-        report = [index_to_word(vocab, x) for x in report.squeeze().tolist()]
+        generated_report = model.generate_report(image, max_length=100)
+        report = [idx_to_word[x] for x in report.squeeze().tolist()]
 
-        if len(out) < len(report):
-            tot_score += bleu_score(out, report[:len(out)]) 
+        if len(generated_report) < len(report):
+            tot_score += bleu_score(generated_report, report[:len(generated_report)]) 
 
         else:
-            tot_score += bleu_score(out[:len(report)], report)  
+            tot_score += bleu_score(generated_report[:len(report)], report)  
 
 
-        print(" ".join(out))
+        print('OUTPUT')
+        print(" ".join(generated_report))
+        print('REPORT')
         print(" ".join(report))
 
     print("AVG BLEU SCORE:", tot_score/num_reports)

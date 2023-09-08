@@ -18,6 +18,7 @@ if __name__ == '__main__':
     ## Defining datasets and dataloaders
     train_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/train_output.jsonl', IMG_DIR_TRAIN, train_flag=True)
     word_idx = train_dataset.word_idx
+    idx_word = train_dataset.idx_word
     vocab_size = len(word_idx)
     
     valid_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR+'/valid_output.jsonl', IMG_DIR_VALID, word_idx=word_idx)
@@ -54,11 +55,11 @@ if __name__ == '__main__':
     '''
     ## Combined
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-    combined_model = CombinedModel(args, word_idx, vocab_size, device).to(device)
+    combined_model = CombinedModel(args, word_idx, idx_word, device).to(device)
     
     if not args.combined.pretrained:
         combined_model = train_combined_model(args, combined_model, train_loader, valid_loader, vocab_size, device)
     else:
-        combined_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/combined_model.pt')['model'])
+        combined_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/combined_model.pt', map_location=device)['model'])
     
-    test_combined_model(args, combined_model, test_loader, word_idx, device)
+    test_combined_model(args, combined_model, test_loader, word_idx, idx_word, device)

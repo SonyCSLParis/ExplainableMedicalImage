@@ -36,9 +36,11 @@ class MIMIC_CXR(Dataset):
         # Vocabulary is built from the training set, so if we are building the
         # validation or test set, we take word_idx in input
         if train_flag:
-            self.word_idx = self.build_vocab()
+            self.word_idx = self.word_to_index()
+            self.idx_word = self.index_to_word(self.word_idx)
         else:
             self.word_idx = word_idx
+            self.idx_word = self.index_to_word(word_idx)
         
         self.data_dir = os.path.dirname(data_path)
         self.data = [json.loads(l) for l in open(data_path)]
@@ -46,7 +48,7 @@ class MIMIC_CXR(Dataset):
     def __len__(self):
         return len(self.data)
     
-    def build_vocab(self):
+    def word_to_index(self):
         texts = []
         with open(self.data_path, 'r') as file:
             for line in file:
@@ -58,16 +60,27 @@ class MIMIC_CXR(Dataset):
         
         vocab = set()
         for words in texts:
-            vocab.update(words)
+            vocab.update(words)            
             
         vocab_list = []
+        
+        # Adding PAD, UNK, START, and END tokens
         vocab_list.append('PAD')
         vocab_list.append('UNK')
+        vocab_list.append('START')
+        vocab_list.append('END')
         vocab_list = vocab_list + list(vocab)
 
         word_to_index = {word: index for index, word in enumerate(vocab_list)}
 
         return word_to_index
+    
+    def index_to_word(self, vocab):
+        idx_to_word = {}
+        for k in vocab.keys():
+            idx_to_word[vocab[k]] = k
+            
+        return idx_to_word
     
     def process_image(self, image):
         if self.train_flag:
@@ -101,7 +114,16 @@ class MIMIC_CXR(Dataset):
         tokenizer = torchtext.data.utils.get_tokenizer('basic_english')
         tokens = tokenizer(report)
 
-        sequences = torch.tensor([self.word_idx[word] if word in self.word_idx.keys() else self.word_idx['UNK'] for word in tokens])
+        # Substitute words with corresponding indices in vocabulary, adding START and END tokens
+        # at the beginning and end of the report.
+        sequences = [self.word_idx['START']]
+        for word in tokens:
+            if word in self.word_idx.keys():
+                sequences.append(self.word_idx[word])
+            else:
+                sequences.append(self.word_idx['UNK'])
+        sequences.append(self.word_idx['END'])
+        sequences = torch.tensor(sequences)
         
         # Preprocess label
         labels = re.sub("\'|\ ", "", re.sub('\"', '', sample['label'])).split(',')
