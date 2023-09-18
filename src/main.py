@@ -24,6 +24,7 @@ if __name__ == '__main__':
     word_idx = train_dataset.word_idx
     idx_word = train_dataset.idx_word
     vocab_size = len(word_idx)
+    print(IMG_DIR_TRAIN)
 
     # Load validation and test datasets with provided vocabulary information
     valid_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR + '/valid_output.jsonl', IMG_DIR_VALID, word_idx=word_idx)
