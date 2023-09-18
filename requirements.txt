@@ -9,9 +9,10 @@ omegaconf==2.3.0
 spacy==3.6.0
 tqdm==4.65.0
 en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.6.0/en_core_web_lg-3.6.0-py3-none-any.whl
-torch==2.0.1
-torchaudio==2.0.2
-torchvision==0.15.2
+torch==1.13.1
+torchvision==0.14.1
 keras==2.13.1
-torchtext==0.15.2
-torchdata==0.6.1
+torchtext==0.14.1
+torchdata==0.5.1
+torchcam==0.3.2
+torchaudio==0.13.1
