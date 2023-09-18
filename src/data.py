@@ -105,7 +105,7 @@ class MIMIC_CXR(Dataset):
         
         # Preprocess image
         img_filename = os.path.basename(sample['img'])
-        img_path = os.path.join('/home/martina/Desktop/ExplainableMedicalImage/data/mimic/Train/', img_filename)
+        img_path = os.path.join('/home/martina/Desktop/ExplainableMedicalImage/data/mimic/images/Train/', img_filename)
 
         image = Image.open(os.path.join(img_path)).convert("RGB")
         processed_image = self.process_image(image)
