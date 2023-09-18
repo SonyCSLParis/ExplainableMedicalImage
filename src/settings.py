@@ -12,15 +12,15 @@ ROOT_DIR = os.path.dirname(os.getcwd())
 print(ROOT_DIR)
 
 # Creating a path to the source code directory
-SRC_DIR = os.path.join(ROOT_DIR + '/src')
+SRC_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/src')
 print(SRC_DIR)
 
 # Creating paths for various data directories
-DATA_DIR = os.path.join(ROOT_DIR + '/data')
+DATA_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/data')
 MIMIC_DIR = os.path.join(DATA_DIR + '/mimic')
 
 # Creating paths for various output directories
-OUTPUT_DIR = os.path.join(ROOT_DIR + '/output')
+OUTPUT_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/output')
 OUTPUT_DIR_TEXT = os.path.join(OUTPUT_DIR + '/output_text')
 
 # Creating paths for image directories
@@ -34,7 +34,7 @@ REPORTS_DIR = os.path.join(MIMIC_DIR + '/reports')
 REPORT_PREPROCESS_DIR = os.path.join(REPORTS_DIR + '/preprocessed')
 
 # Creating a path for trained models directory
-TRAINED_MODELS_DIR = os.path.join(ROOT_DIR + '/trained_models')
+TRAINED_MODELS_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/trained_models')
 
 # Creating a list of directories that need to be created if they don't exist
 list_dir = [DATA_DIR, OUTPUT_DIR, OUTPUT_DIR_TEXT, REPORT_PREPROCESS_DIR, TRAINED_MODELS_DIR]
