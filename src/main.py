@@ -6,7 +6,7 @@ from settings import *
 from model_visual import *
 
 # Load configurations from YAML file
-args = OmegaConf.load(ROOT_DIR + '/configs/config.yaml')
+args = OmegaConf.load(ROOT_DIR + '/ExplainableMedicalImage/configs/config.yaml')
 
 # Set device for computation (CUDA if available, otherwise CPU)
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
