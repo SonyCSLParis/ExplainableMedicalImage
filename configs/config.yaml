@@ -1,6 +1,6 @@
 opts:
     preprocess: True
-    batch_size: 8
+    batch_size: 6
     n_classes: 14
 
 image_model:
@@ -12,7 +12,7 @@ image_model:
     patience: 10
     epochs: 30
     lr: 1e-3
-    patch_size: 8
+    patch_size: 6
     
 text_model:
     pretrained: True
