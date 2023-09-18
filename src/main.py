@@ -4,6 +4,7 @@ from text_model import *  # Import functions/classes related to text model
 from torch.utils.data import DataLoader
 from settings import *
 from model_visual import *
+from data import * 
 
 # Load configurations from YAML file
 args = OmegaConf.load(ROOT_DIR + '/ExplainableMedicalImage/configs/config.yaml')
