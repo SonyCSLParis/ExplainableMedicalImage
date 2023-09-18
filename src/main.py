@@ -1,3 +1,4 @@
+import torch.cuda
 from omegaconf import OmegaConf
 from combined import *  # Import functions/classes related to combined model
 from text_model import *  # Import functions/classes related to text model
@@ -72,6 +73,9 @@ if __name__ == '__main__':
 
     # Create an instance of the combined model
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+    torch.cuda.empty_cache()
+    torch.cuda.set_per_process_memory_fraction(0.5)
+
     combined_model = CombinedModel(args, word_idx, idx_word, device).to(device)
 
     # Train the combined model from scratch or load a pre-trained model
