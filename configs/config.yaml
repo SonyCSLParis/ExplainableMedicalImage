@@ -1,6 +1,6 @@
 opts:
     preprocess: True
-    batch_size: 32
+    batch_size: 16
     n_classes: 14
 
 image_model:
