@@ -20,14 +20,14 @@ if __name__ == '__main__':
     ## Defining datasets and dataloaders
 
     # Load training dataset and extract vocabulary information
-    train_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR + '/ExplainableMedicalImage/train_output.jsonl', IMG_DIR_TRAIN, train_flag=True)
+    train_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR + '/train_output.jsonl', IMG_DIR_TRAIN, train_flag=True)
     word_idx = train_dataset.word_idx
     idx_word = train_dataset.idx_word
     vocab_size = len(word_idx)
 
     # Load validation and test datasets with provided vocabulary information
-    valid_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR + '/ExplainableMedicalImage/valid_output.jsonl', IMG_DIR_VALID, word_idx=word_idx)
-    test_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR + '/ExplainableMedicalImage/test_output.jsonl', IMG_DIR_TEST, word_idx=word_idx)
+    valid_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR + '/valid_output.jsonl', IMG_DIR_VALID, word_idx=word_idx)
+    test_dataset = MIMIC_CXR(REPORT_PREPROCESS_DIR + '/test_output.jsonl', IMG_DIR_TEST, word_idx=word_idx)
 
     # Create dataloaders for training, validation, and testing
     train_loader = DataLoader(train_dataset, batch_size=args.opts.batch_size, shuffle=True, drop_last=True,
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         combined_model = train_combined_model(args, combined_model, train_loader, valid_loader, vocab_size, device)
     else:
         combined_model.load_state_dict(
-            torch.load(TRAINED_MODELS_DIR + '/ExplainableMedicalImage/combined_model.pt', map_location=device)['model'])
+            torch.load(TRAINED_MODELS_DIR + '/combined_model.pt', map_location=device)['model'])
 
     # Test the combined model
     test_combined_model(args, combined_model, test_loader, word_idx, idx_word, device)
