@@ -17,7 +17,7 @@ print(SRC_DIR)
 
 # Creating paths for various data directories
 DATA_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/data')
-MIMIC_DIR = os.path.join('home/martina/Desktop/ExplainableMedicalImage/data/mimic')
+MIMIC_DIR = os.path.join('/home/martina/Desktop/ExplainableMedicalImage/data/mimic')
 
 # Creating paths for various output directories
 OUTPUT_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/output')
