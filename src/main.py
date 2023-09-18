@@ -6,6 +6,8 @@ from torch.utils.data import DataLoader
 from settings import *
 from model_visual import *
 from data import *
+from torch.utils.checkpoint import checkpoint
+
 
 # Load configurations from YAML file
 args = OmegaConf.load(ROOT_DIR + '/ExplainableMedicalImage/configs/config.yaml')
@@ -33,10 +35,10 @@ if __name__ == '__main__':
 
     # Create dataloaders for training, validation, and testing
     train_loader = DataLoader(train_dataset, batch_size=args.opts.batch_size, shuffle=True, drop_last=True,
-                              collate_fn=collate_fn)
+                              collate_fn=collate_fn,pin_memory=True)
     valid_loader = DataLoader(valid_dataset, batch_size=args.opts.batch_size, shuffle=False, drop_last=True,
-                              collate_fn=collate_fn)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, drop_last=False, collate_fn=collate_fn)
+                              collate_fn=collate_fn,pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, drop_last=False, collate_fn=collate_fn,pin_memory=True)
 
     '''
     ## Image classification from textual information
@@ -74,7 +76,7 @@ if __name__ == '__main__':
     # Create an instance of the combined model
     device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
     torch.cuda.empty_cache()
-    torch.cuda.set_per_process_memory_fraction(0.5)
+    torch.cuda.set_per_process_memory_fraction(0.3)
 
     combined_model = CombinedModel(args, word_idx, idx_word, device).to(device)
 
