@@ -1,52 +1,75 @@
-import gc
-import torch
-import torchtext
-from torch import nn
-from torch import cuda
-from torch import optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-import torch.nn.functional as F
-from tqdm import tqdm
-from collections import OrderedDict
+# Importing necessary libraries
+import gc  # Garbage collection for memory management
+import torch  # PyTorch library
+import torchtext  # Text processing library for PyTorch
+from torch import nn  # Neural network module in PyTorch
+from torch import cuda  # CUDA for GPU support
+from torch import optim  # Optimization algorithms in PyTorch
+from torch.optim.lr_scheduler import ReduceLROnPlateau  # Learning rate scheduler
+import torch.nn.functional as F  # Functional interface to various operations in PyTorch
+from tqdm import tqdm  # Progress bar for loops
+from collections import OrderedDict  # Ordered dictionary for preserving the order of elements
+import matplotlib.pyplot as plt
 
+# Importing additional settings from a custom module
 from settings import *
 
+
+# Defining a class for the text generation model
 class TextGenerator(nn.Module):
     def __init__(self, vocab_size, embedding_dim, lstm_units, n_classes):
         super(TextGenerator, self).__init__()
+
+        # Embedding layer to convert integer-encoded words to dense vectors
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
+
+        # LSTM layer for sequential processing of the embedded words
         self.lstm = nn.LSTM(embedding_dim, lstm_units, batch_first=True, bidirectional=True)
+
+        # Fully connected linear layer for final classification
         self.linear = nn.Linear(lstm_units * 2, n_classes)
 
     def forward(self, x):
+        # Embedding layer forward pass
         embedded = self.embedding(x)
-        self.lstm.flatten_parameters()
-        lstm_out, _ = self.lstm(embedded)
-        output = self.linear(lstm_out[:,-1,:])
-        
-        return lstm_out[:,-1,:], output
 
+        # Flatten LSTM parameters to speed up computation
+        self.lstm.flatten_parameters()
+
+        # LSTM layer forward pass
+        lstm_out, _ = self.lstm(embedded)
+
+        # Final classification using linear layer
+        output = self.linear(lstm_out[:, -1, :])
+
+        return lstm_out[:, -1, :], output
+
+
+# Function for training the text generation model
 def train_text_model(args, model, train_loader, valid_loader, vocab_size, device):
     model = nn.DataParallel(model)
-    
     criterion = nn.BCELoss()
-    
+
     if args.text_model.optim == 'adam':
         optimizer = optim.Adam(model.parameters(), args.text_model.lr)
-        
+
+    # Patience parameter for reducing learning rate on plateau
     patience = args.text_model.patience
     scheduler = ReduceLROnPlateau(optimizer, 'min', patience=patience, verbose=True)
-        
+
     # Early stopping parameters
     es_patience = args.text_model.es_patience
     min_valid_loss = 10000000
     min_eta = 0
     n_stop = 0
-        
+
     best_valid_acc = 0
+    # Add this line to store training losses
+    training_losses = []
+
     for epoch in range(args.text_model.epochs):
         model.train()
-        
+
         # Training step
         train_accs = []
         train_losses = []
@@ -57,25 +80,35 @@ def train_text_model(args, model, train_loader, valid_loader, vocab_size, device
             preds = torch.sigmoid(logits)
             loss = criterion(preds, y)
             train_losses.append(loss.item())
-            
-            acc = torch.sum(y==torch.round(preds)) / (preds.size()[0]*preds.size()[1])
+
+            acc = torch.sum(y == torch.round(preds)) / (preds.size()[0] * preds.size()[1])
             train_accs.append(acc.item())
-            
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
+
         mean_train_acc = sum(train_accs) / len(train_accs)
         mean_train_loss = sum(train_losses) / len(train_losses)
-        
+
         print(f'Epoch {epoch} -> Train accuracy: {mean_train_acc}')
         gc.collect()
         cuda.empty_cache()
-              
+
+        training_losses.append(mean_train_loss)
+
+        plt.figure()
+        plt.plot(training_losses, label='Training Loss')
+        plt.title('Training Loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig('src/training_loss_plot.png')
+
         # Validation step
         valid_accs = []
         valid_losses = []
-        
+
         model.eval()
         with torch.no_grad():
             for _, report, y in tqdm(valid_loader):
@@ -86,30 +119,30 @@ def train_text_model(args, model, train_loader, valid_loader, vocab_size, device
                 loss = criterion(preds, y)
                 valid_losses.append(loss.item())
 
-                acc = torch.sum(y==torch.round(preds)) / (preds.size()[0]*preds.size()[1])
+                acc = torch.sum(y == torch.round(preds)) / (preds.size()[0] * preds.size()[1])
                 valid_accs.append(acc.item())
-            
+
         mean_valid_loss = sum(valid_losses) / len(valid_losses)
         mean_valid_acc = sum(valid_accs) / len(valid_accs)
         scheduler.step(mean_valid_loss)
         print(f'Epoch {epoch} -> Validation accuracy: {mean_valid_acc}')
-        
+
         if mean_valid_acc > best_valid_acc:
             best_valid_acc = mean_valid_acc
-            
+
             save_obj = OrderedDict([
-                    ('model', model.module.state_dict()),
-                    ('mean_train_acc', mean_train_acc),
-                    ('mean_train_loss', mean_train_loss),
-                    ('mean_valid_acc', mean_valid_acc),
-                    ('mean_valid_loss', mean_valid_loss)
-                ])
+                ('model', model.module.state_dict()),
+                ('mean_train_acc', mean_train_acc),
+                ('mean_train_loss', mean_train_loss),
+                ('mean_valid_acc', mean_valid_acc),
+                ('mean_valid_loss', mean_valid_loss)
+            ])
             torch.save(save_obj, TRAINED_MODELS_DIR + f'/text_model.pt')
             print('Saving the model...')
-        
+
         gc.collect()
         cuda.empty_cache()
-        
+
         # Early stopping
         if patience != -1:
             if mean_valid_loss < min_valid_loss:
@@ -120,14 +153,16 @@ def train_text_model(args, model, train_loader, valid_loader, vocab_size, device
                     print(f'EARLY STOPPING: Min {min_valid_loss} reached {min_eta} epochs ago')
                     break
                 else:
-                    n_stop +=1
+                    n_stop += 1
             else:
                 min_eta += 1
-        
-def test_text_model(args, model, test_loader, device):   
+
+
+# Function for testing the text generation model
+def test_text_model(args, model, test_loader, device):
     # Load pre-trained weights
     model = nn.DataParallel(model)
-              
+
     # Validation step
     test_accs = []
 
@@ -135,16 +170,15 @@ def test_text_model(args, model, test_loader, device):
     with torch.no_grad():
         for _, x, y in tqdm(test_loader):
             y = y.to(device)
-            
+
             # Get model's predictions
             _, logits = model(x.to(device))
             preds = torch.sigmoid(logits)
 
             # Compute accuracy
-            acc = torch.sum(y==torch.round(preds)) / (preds.size()[0]*preds.size()[1])
+            acc = torch.sum(y == torch.round(preds)) / (preds.size()[0] * preds.size()[1])
             test_accs.append(acc.item())
 
     mean_test_acc = sum(test_accs) / len(test_accs)
-    
+
     return mean_test_acc
-    
