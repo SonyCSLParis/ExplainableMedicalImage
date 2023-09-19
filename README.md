@@ -1,6 +1,7 @@
 # Image Captioning for Interpretable Automatic Report Generation
-## Martina Galletti, Michela Proietti
+Martina Galletti, Michela Proietti
 
+# Usage
 The _config_ folder contains the configuration file that allows changing the experiment's hyperparameters.
 All the code is contained in the _src_ folder.
 In particular, by setting the image model as pre-trained in the configuration file (the weights are saved in the _trained_models_ folder in the file
