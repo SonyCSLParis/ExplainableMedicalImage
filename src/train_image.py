@@ -131,3 +131,69 @@ def test_image_model(args, model, test_loader, device):
     mean_test_acc = sum(test_accs) / len(test_accs)
     
     return mean_test_acc
+
+
+def get_statistics(args):
+    train_losses, train_accs, valid_losses, valid_accs = [], [], [], []
+    
+    for epoch in range(args.image_model.epochs):
+        stats_file = torch.load(TRAINED_MODELS_DIR + f'/image_model_epoch{epoch}.pt')
+        train_losses.append(stats_file['mean_train_loss'])
+        train_accs.append(stats_file['mean_train_acc'])
+        valid_losses.append(stats_file['mean_valid_loss'])
+        valid_accs.append(stats_file['mean_valid_acc'])
+
+    return train_losses, train_accs, valid_losses, valid_accs
+
+def plot_training_and_validation_loss(train_loss_values, val_loss_values):
+    """
+    Plot the training and validation loss over epochs.
+
+    Parameters:
+    - train_loss_values: A list of training loss values representing the loss at each epoch.
+    - val_loss_values: A list of validation loss values representing the loss at each epoch.
+    """
+
+    # Create a range of epochs for the x-axis (assuming one loss value per epoch).
+    epochs = range(1, len(train_loss_values) + 1)
+
+    # Create the plot
+    plt.figure(figsize=(10, 5))  # Adjust figure size as needed
+    plt.plot(epochs, train_loss_values, 'b', label='Training Loss')
+    plt.plot(epochs, val_loss_values, 'r', label='Validation Loss')
+    plt.title('Training and Validation Loss Over Epochs')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(TRAINED_MODELS_DIR+'/training_losses.png')
+
+    # Show the plot
+    plt.show()
+    
+    
+def plot_training_and_validation_accuracy(train_accuracy_values, val_accuracy_values):
+    """
+    Plot the training and validation accuracy over epochs.
+
+    Parameters:
+    - train_accuracy_values: A list of training accuracy values representing accuracy at each epoch.
+    - val_accuracy_values: A list of validation accuracy values representing accuracy at each epoch.
+    """
+
+    # Create a range of epochs for the x-axis (assuming one value per epoch).
+    epochs = range(1, len(train_accuracy_values) + 1)
+
+    # Create the plot
+    plt.figure(figsize=(10, 5))  # Adjust figure size as needed
+    plt.plot(epochs, train_accuracy_values, 'b', label='Training Accuracy')
+    plt.plot(epochs, val_accuracy_values, 'r', label='Validation Accuracy')
+    plt.title('Training and Validation Accuracy Over Epochs')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(TRAINED_MODELS_DIR+'/training_accs.png')
+
+    # Show the plot
+    plt.show()
