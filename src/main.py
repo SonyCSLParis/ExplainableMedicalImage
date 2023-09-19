@@ -16,7 +16,7 @@ args = OmegaConf.load(ROOT_DIR + '/ExplainableMedicalImage/configs/config.yaml')
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 # Print device information (optional)
-# print(f'Running on device {torch.cuda.current_device()}')
+print(f'Running on device {torch.cuda.current_device()}')
 
 if __name__ == '__main__':
 
@@ -55,21 +55,27 @@ if __name__ == '__main__':
     # Test the text model (optional)
     # test_acc = test_text_model(args, text_model, test_loader, device)
     # print(f'Using trained text model with test accuracy {test_acc}')
-
+    '''
+    
     ## Image Model without text
 
     # Train the image model from scratch or load a pre-trained model
     if not args.image_model.pretrained:
-        image_model = train_image_model(args, train_loader, valid_loader, device)
+        image_model, epoch_train_losses, epoch_train_accs, epoch_valid_losses, epoch_valid_accs = train_image_model(args, train_loader, valid_loader, device)
+        plot_training_and_validation_loss(epoch_train_losses, epoch_valid_losses)
+        plot_training_and_validation_accuracy(epoch_train_accs, epoch_valid_accs)
     else:
         image_model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout).to(device)
         file = torch.load(TRAINED_MODELS_DIR + '/image_model.pt', map_location=device)
         image_model.load_state_dict(file['model'])
 
+        epoch_train_losses, epoch_train_accs, epoch_valid_losses, epoch_valid_accs = get_statistics(args)
+        plot_training_and_validation_loss(epoch_train_losses, epoch_valid_losses)
+        plot_training_and_validation_accuracy(epoch_train_accs, epoch_valid_accs)
+
     # Test the image model (optional)
-    # test_acc = test_image_model(args, image_model, test_loader, device)
-    # print(f'Using trained image model with test accuracy {test_acc}')
-    '''
+    test_acc = test_image_model(args, image_model, test_loader, device)
+    print(f'Using trained image model with test accuracy {test_acc}')
 
     ## Combined
 
@@ -78,6 +84,7 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     torch.cuda.set_per_process_memory_fraction(0.3)
 
+    # Define the model
     combined_model = CombinedModel(args, word_idx, idx_word, device).to(device)
 
     # Train the combined model from scratch or load a pre-trained model

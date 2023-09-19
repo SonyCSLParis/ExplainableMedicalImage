@@ -11,15 +11,18 @@ from tqdm import tqdm
 from model_visual import *
 from settings import *
 
+# Function to train the image model on the classification task
 def train_image_model(args, train_loader, valid_loader, device):
+    # Define the model
     model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout).to(device)
     model = nn.DataParallel(model)
-    
+
+    # Define loss and optimizer
     criterion = nn.BCELoss()
-    
     if args.image_model.optim == 'adam':
         optimizer = optim.Adam(model.parameters(), args.image_model.lr)
-        
+
+    # Defome the scheduler to reduce the learning rate if the validation loss does not decrease
     patience = args.image_model.patience
     scheduler = ReduceLROnPlateau(optimizer, 'min', patience=patience, verbose=True)
         
@@ -28,8 +31,17 @@ def train_image_model(args, train_loader, valid_loader, device):
     min_valid_loss = 10000000
     min_eta = 0
     n_stop = 0
-        
+
+    # Control variable for saving the model's weights
     best_valid_acc = 0
+
+    # Save training statistics
+    epoch_train_losses = []
+    epoch_valid_losses = []
+    epoch_train_accs = []
+    epoch_valid_accs = []
+
+    # Training loop
     for epoch in range(args.image_model.epochs):
         model.train()
         
@@ -38,21 +50,30 @@ def train_image_model(args, train_loader, valid_loader, device):
         train_losses = []
         for x, _, y in tqdm(train_loader):
             y = y.to(device)
-            features, logits = model(x.to(device))
 
+            # Extract logits and compute predictions
+            features, logits = model(x.to(device))
             preds = torch.sigmoid(logits)
+
+            # Compute loss
             loss = criterion(preds, y)
             train_losses.append(loss.item())
-            
+
+            # Compute accuracy
             acc = torch.sum(y==torch.round(preds)) / (preds.size()[0]*preds.size()[1])
             train_accs.append(acc.item())
-            
+
+            # Backpropagate
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
+
+        # Compute mean loss and accuracy over the whole training set
         mean_train_acc = sum(train_accs) / len(train_accs)
         mean_train_loss = sum(train_losses) / len(train_losses)
+
+        epoch_train_losses.append(mean_train_loss)
+        epoch_train_accs.append(mean_train_acc)
         
         print(f'Epoch {epoch} -> Train accuracy: {mean_train_acc}')
         gc.collect()
@@ -61,25 +82,44 @@ def train_image_model(args, train_loader, valid_loader, device):
         # Validation step
         valid_accs = []
         valid_losses = []
-        
+
         model.eval()
         with torch.no_grad():
             for x, _, y in tqdm(valid_loader):
                 y = y.to(device)
-                features, logits = model(x.to(device))
 
+                # Extract logits and compute predictions
+                features, logits = model(x.to(device))
                 preds = torch.sigmoid(logits)
+
+                # Compute the loss
                 loss = criterion(preds, y)
                 valid_losses.append(loss.item())
 
+                # Compute the accuracy
                 acc = torch.sum(y==torch.round(preds)) / (preds.size()[0]*preds.size()[1])
                 valid_accs.append(acc.item())
-            
+
+        # Compute mean loss and accuracy over the whole validation set
         mean_valid_loss = sum(valid_losses) / len(valid_losses)
         mean_valid_acc = sum(valid_accs) / len(valid_accs)
+        
+        epoch_valid_losses.append(mean_valid_loss)
+        epoch_valid_accs.append(mean_valid_acc)
+        
         scheduler.step(mean_valid_loss)
         print(f'Epoch {epoch} -> Validation accuracy: {mean_valid_acc}')
-        
+
+        # Save the epoch's statistics
+        save_obj = OrderedDict([
+                ('mean_train_acc', mean_train_acc),
+                ('mean_train_loss', mean_train_loss),
+                ('mean_valid_acc', mean_valid_acc),
+                ('mean_valid_loss', mean_valid_loss)
+            ])
+        torch.save(save_obj, TRAINED_MODELS_DIR + f'/image_model_epoch{epoch}.pt')
+
+        # Check if we reached a new best validation accuracy. If yes, save the model's parameters
         if mean_valid_acc > best_valid_acc:
             best_valid_acc = mean_valid_acc
             
@@ -109,7 +149,7 @@ def train_image_model(args, train_loader, valid_loader, device):
                     n_stop +=1
             else:
                 min_eta += 1
-    return model
+    return model, epoch_train_losses, epoch_train_accs, epoch_valid_losses, epoch_valid_accs
 
 def test_image_model(args, model, test_loader, device):          
     # Validation step
@@ -120,7 +160,7 @@ def test_image_model(args, model, test_loader, device):
         for x, _, y in tqdm(test_loader):
             y = y.to(device)
             
-            # Get model's predictions
+            # Extract the logits and compute model's predictions
             features, logits = model(x.to(device))
             preds = torch.sigmoid(logits)
 
@@ -128,11 +168,12 @@ def test_image_model(args, model, test_loader, device):
             acc = torch.sum(y==torch.round(preds)) / (preds.size()[0]*preds.size()[1])
             test_accs.append(acc.item())
 
+    # Compute mean accuracy over the whole test set
     mean_test_acc = sum(test_accs) / len(test_accs)
     
     return mean_test_acc
 
-
+# Load data from the epochs' checkpoints and return them in the form of vectors
 def get_statistics(args):
     train_losses, train_accs, valid_losses, valid_accs = [], [], [], []
     
