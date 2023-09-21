@@ -8,9 +8,9 @@
 In this project, we implemented a model for Image Captioning for Interpretable Automatic Report Generation. We decided to combine a Res-NET model with XAI component together with a Bi-LSTM for explainable report generation. 
 
 We decided to use multi-modality for three main reasons : 
-- Multi-modal pre-training : significant progress but general domain (using : MS-COCO)
-- Vision and Language : most used information in clinical domain 
-- Multi-purpose joint representations of vision and language demonstrated effectiveness for a series of downstream tasks (i.e. diagnosis classification, medical image-report retrieval, medical visual question answering, radiology report generation)
+- *Multi-modal pre-training* : significant progress but most of the time in general domain (using : MS-COCO)
+- *Vision and Language* : most used information in clinical domain 
+- *Multi-purpose joint representations of vision and language demonstrated effectiveness* for a series of downstream tasks (i.e. diagnosis classification, medical image-report retrieval, medical visual question answering, radiology report generation)
 
 ## Model  
 
