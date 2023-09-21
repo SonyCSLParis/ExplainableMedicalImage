@@ -47,13 +47,13 @@ class TextGenerator(nn.Module):
 
 # Function for training the text generation model
 def train_text_model(args, model, train_loader, valid_loader, vocab_size, device):
-    model = nn.DataParallel(model)
-    criterion = nn.BCELoss()
+    model = nn.DataParallel(model) # parallise computation on multiple devide
+    criterion = nn.BCELoss() # binary cross entropy loss --> binary classification tasks
 
     if args.text_model.optim == 'adam':
         optimizer = optim.Adam(model.parameters(), args.text_model.lr)
 
-    # Patience parameter for reducing learning rate on plateau
+    # Patience parameter for reducing learning rate on plateau --> how many epochs to wait before reducing the learning raye
     patience = args.text_model.patience
     scheduler = ReduceLROnPlateau(optimizer, 'min', patience=patience, verbose=True)
 
@@ -77,26 +77,30 @@ def train_text_model(args, model, train_loader, valid_loader, vocab_size, device
             y = y.to(device)
             _, logits = model(report.to(device).long())
 
+            # predictions with sigmoid
             preds = torch.sigmoid(logits)
+            # binary cross entropy computed between pred and ground truth
             loss = criterion(preds, y)
             train_losses.append(loss.item())
 
+            # accuracy
             acc = torch.sum(y == torch.round(preds)) / (preds.size()[0] * preds.size()[1])
             train_accs.append(acc.item())
+
+            # standard backpropagation step clears the gradients, computes gradients with respect to the loss, and updates the model's parameters
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
+        # compute mean accuracy and mean training loss
         mean_train_acc = sum(train_accs) / len(train_accs)
         mean_train_loss = sum(train_losses) / len(train_losses)
 
         print(f'Epoch {epoch} -> Train accuracy: {mean_train_acc}')
-        gc.collect()
-        cuda.empty_cache()
-
         training_losses.append(mean_train_loss)
-
+        
+        # create plot 
         plt.figure()
         plt.plot(training_losses, label='Training Loss')
         plt.title('Training Loss')
@@ -105,7 +109,7 @@ def train_text_model(args, model, train_loader, valid_loader, vocab_size, device
         plt.legend()
         plt.savefig('src/training_loss_plot.png')
 
-        # Validation step
+        # Validation step --> similar to training but used for validation
         valid_accs = []
         valid_losses = []
 
