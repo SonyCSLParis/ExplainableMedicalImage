@@ -16,7 +16,6 @@ from torchvision.transforms.functional import normalize, resize, to_pil_image
 
 
 #combined model class : architecture of the combined model to combine images and text sources
-
 class CombinedModel(nn.Module):
 
     # architecture and model components
@@ -238,7 +237,7 @@ def test_combined_model(args, model, test_loader, word_to_idx, idx_to_word, devi
         # convert report to a list of words
         report = [idx_to_word[x] for x in report.squeeze().tolist()]
 
-        # bleu 
+        # compute bleu 
         if len(generated_report) < len(report):
             tot_score += bleu_score(generated_report, report[:len(generated_report)])
 
