@@ -1,9 +1,9 @@
+#imports 
 import torch
 from torch.utils.data import DataLoader, Dataset
 from model_visual import *
 from text_model import *
 from torchtext.data.metrics import bleu_score
-
 import gc
 import PIL
 import numpy as np
@@ -15,10 +15,15 @@ from torchvision.io.image import read_image
 from torchvision.transforms.functional import normalize, resize, to_pil_image
 
 
+#combined model class : architecture of the combined model to combine images and text sources
+
 class CombinedModel(nn.Module):
+
+    # architecture and model components
     def __init__(self, args, word_to_idx, idx_to_word, device):
         super(CombinedModel, self).__init__()
-        # Load pretrained image model
+        
+        # load pretrained image model
         self.image_model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout)
         self.image_model.load_state_dict(
             torch.load(TRAINED_MODELS_DIR + '/image_model_512.pt', map_location=device)['model'])
@@ -28,48 +33,48 @@ class CombinedModel(nn.Module):
         # Define the extractor to compute GradCAM explanations
         self.cam_extractor = GradCAM(self.image_model, self.image_model.model_wo_fc[7])
 
+        # set patch size, feature size,
         self.patch_size = args.image_model.patch_size
         self.feat_size = args.image_model.hid_dim
 
-        # Define vocabularies
+        # set word-to-index, index-to-word 
         self.word_to_idx = word_to_idx
         self.idx_to_word = idx_to_word
-        vocab_size = len(word_to_idx)
-
-        self.padding = torchvision.transforms.Pad(256, fill=0, padding_mode='constant')
         
-        '''
-        self.text_model = TextGenerator(vocab_size, args.text_model.embedding_dim, args.text_model.lstm_units, args.opts.n_classes)
-        self.text_model.load_state_dict(torch.load(TRAINED_MODELS_DIR + '/text_model.pt', map_location=device)['model'])
-        self.text_model.linear = nn.Identity()
+        # define vocabularies
+        vocab_size = len(word_to_idx)
+        
+        # define padding 
+        self.padding = torchvision.transforms.Pad(256, fill=0, padding_mode='constant')
 
-        self.linear = nn.Linear(args.text_model.lstm_units*2 + args.image_model.hid_dim*2, vocab_size)
-        '''
-
-        # Define the embedding layer to encode textual inputs
+        # define the embedding layer to encode textual inputs
         self.embedding = nn.Embedding(vocab_size, args.text_model.embedding_dim, padding_idx=0)
         
-        # LSTM + linear layer for report generation
+        # LSTM for report generation
         self.lstm = nn.LSTM(args.text_model.embedding_dim, args.text_model.lstm_units, batch_first=True,
                             bidirectional=True)
+        # linear layerfor output
         self.linear = nn.Linear(args.text_model.lstm_units * 2, vocab_size)
 
         self.device = device
 
-    # Function to extract and encode relevant patches in the images
+    # eextract and encode relevant patches in the images
     def extract_patch_features(self, images):
-        # Get batch predictions
+        # get batch predictions and processes them to extract relevant features 
         self.image_model.eval()
+        # intermediate features and unbounded output
         features_image, logits = self.image_model(images.to(self.device))
+        # applies sigmoid function to get probabilities and round the values to the nearest int 
         preds = torch.round(torch.sigmoid(logits))
 
+        #assign tensor to batch features, create a tensor with zeros and assign a size (num of images in batch and feature size)
         batch_features = torch.zeros((images.shape[0], self.feat_size))
 
-        # For each image in the batch, compute the sum of the features of relevant regions for correctly predicted classes
+        # for each image in the batch, compute the sum of the features of relevant regions for correctly predicted classes
         for i, image in enumerate(images):
             pred = preds[i]
 
-            # Get explanations just for labels predicted as 1 (i.e., when the disease is present)
+            # get explanations just for labels predicted as 1 (i.e., when the disease is present)
             features = torch.zeros((1, self.feat_size))
             for j, pred_j in enumerate(pred):
                 pred_j = pred_j.item()
@@ -165,6 +170,7 @@ class CombinedModel(nn.Module):
         return out
 
 
+# train mdoel 
 def train_combined_model(args, model, train_loader, valid_loader, vocab_size, device):
     # Define loss and optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.combined.lr)
@@ -188,6 +194,7 @@ def train_combined_model(args, model, train_loader, valid_loader, vocab_size, de
 
             loss = criterion(outputs, reports)
 
+            # if minimum loss is encountered, save the model 
             if loss < min_loss:
                 eta = 0
                 min_loss = loss
@@ -211,7 +218,7 @@ def train_combined_model(args, model, train_loader, valid_loader, vocab_size, de
 
     return model
 
-
+# test model on test set 
 def test_combined_model(args, model, test_loader, word_to_idx, idx_to_word, device):
     model.eval()
     load = iter(test_loader)
@@ -224,10 +231,14 @@ def test_combined_model(args, model, test_loader, word_to_idx, idx_to_word, devi
 
         image, report, _ = next(load)
         image = image.to(device)
-
+        
+        # generate a report using the model based on the provided image.
         generated_report = model.generate_report(image, max_length=100)
+
+        # convert report to a list of words
         report = [idx_to_word[x] for x in report.squeeze().tolist()]
 
+        # bleu 
         if len(generated_report) < len(report):
             tot_score += bleu_score(generated_report, report[:len(generated_report)])
 
