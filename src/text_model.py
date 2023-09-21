@@ -1,4 +1,3 @@
-# Importing necessary libraries
 import gc  # Garbage collection for memory management
 import torch  # PyTorch library
 import torchtext  # Text processing library for PyTorch
@@ -9,10 +8,8 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau  # Learning rate schedule
 import torch.nn.functional as F  # Functional interface to various operations in PyTorch
 from tqdm import tqdm  # Progress bar for loops
 from collections import OrderedDict  # Ordered dictionary for preserving the order of elements
-import matplotlib.pyplot as plt
-
-# Importing additional settings from a custom module
-from settings import *
+import matplotlib.pyplot as plt # Matplot for plotting 
+from settings import * # global variables
 
 
 # Defining a class for the text generation model
