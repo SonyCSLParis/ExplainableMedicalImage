@@ -7,7 +7,7 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from torch.nn.utils.rnn import pad_sequence
-
+from settings import *
 label_dict = {'Atelectasis':0, 'Cardiomegaly':1, 'Consolidation':2, 'Edema':3, 'EnlargedCardiomediastinum':4, 'Fracture':5,
               'LungLesion':6, 'LungOpacity':7, 'PleuralEffusion':8, 'Pneumonia':9, 'Pneumothorax':10, 'PleuralOther':11,
               'SupportDevices':12, 'NoFinding':13}
@@ -105,7 +105,7 @@ class MIMIC_CXR(Dataset):
         
         # Preprocess image
         img_filename = os.path.basename(sample['img'])
-        img_path = os.path.join('/home/martina/Desktop/ExplainableMedicalImage/data/mimic/images/Train/', img_filename)
+        img_path = os.path.join(IMG_DIR_TRAIN, img_filename)
 
         image = Image.open(os.path.join(img_path)).convert("RGB")
         processed_image = self.process_image(image)

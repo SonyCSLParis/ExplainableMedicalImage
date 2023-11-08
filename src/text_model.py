@@ -9,7 +9,6 @@ import torch.nn.functional as F  # Functional interface to various operations in
 from tqdm import tqdm  # Progress bar for loops
 from collections import OrderedDict  # Ordered dictionary for preserving the order of elements
 import matplotlib.pyplot as plt # Matplot for plotting 
-from settings import * # global variables
 
 
 # Defining a class for the text generation model

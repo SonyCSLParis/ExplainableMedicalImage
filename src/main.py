@@ -7,16 +7,17 @@ from settings import *
 from model_visual import *
 from data import *
 from torch.utils.checkpoint import checkpoint
-
+from train_image import * 
 
 # Load configurations from YAML file
-args = OmegaConf.load(ROOT_DIR + '/ExplainableMedicalImage/configs/config.yaml')
+args = OmegaConf.load(ROOT_DIR + '/configs/config.yaml')
+print(args)
 
 # Set device for computation (CUDA if available, otherwise CPU)
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 # Print device information (optional)
-print(f'Running on device {torch.cuda.current_device()}')
+# print(f'Running on device {torch.cuda.current_device()}')
 
 if __name__ == '__main__':
 

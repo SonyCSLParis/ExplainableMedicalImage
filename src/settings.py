@@ -16,8 +16,8 @@ SRC_DIR = os.path.join(ROOT_DIR + '/src')
 print(SRC_DIR)
 
 # Creating paths for various data directories
-DATA_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/data')
-MIMIC_DIR = os.path.join('/home/martina/Desktop/ExplainableMedicalImage/data/mimic')
+DATA_DIR = os.path.join(ROOT_DIR + '/data')
+MIMIC_DIR = os.path.join(DATA_DIR + '/mimic')
 
 # Creating paths for various output directories
 OUTPUT_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/output')
@@ -34,13 +34,13 @@ REPORTS_DIR = os.path.join(MIMIC_DIR + '/reports')
 REPORT_PREPROCESS_DIR = os.path.join(REPORTS_DIR + '/preprocessed')
 
 # Creating a path for trained models directory
-TRAINED_MODELS_DIR = os.path.join(ROOT_DIR + '/ExplainableMedicalImage/trained_models')
+TRAINED_MODELS_DIR = os.path.join(ROOT_DIR + '/trained_models')
 
 # Creating a list of directories that need to be created if they don't exist
 list_dir = [DATA_DIR, OUTPUT_DIR, OUTPUT_DIR_TEXT, REPORT_PREPROCESS_DIR, TRAINED_MODELS_DIR]
 
 # Looping through the list of directories
-for x in list_dir:
-    if not os.path.exists(x):
-        # Creating the directory if it doesn't exist
-        os.makedirs(x)
+# for x in list_dir:
+#     if not os.path.exists(x):
+#         # Creating the directory if it doesn't exist
+#         os.makedirs(x)

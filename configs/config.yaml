@@ -1,10 +1,10 @@
 opts:
-    preprocess: True
+    preprocess: False
     batch_size: 6
     n_classes: 14
 
 image_model:
-    pretrained: True
+    pretrained: False
     hid_dim: 256
     dropout: 0.4
     optim: 'adam'
@@ -15,7 +15,7 @@ image_model:
     patch_size: 6
     
 text_model:
-    pretrained: True
+    pretrained: False
     embedding_dim: 512
     lstm_units: 256
     lr: 1e-2

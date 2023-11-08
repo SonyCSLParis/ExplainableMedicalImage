@@ -160,3 +160,4 @@ cython_debug/
 .idea/
 /mimic/
 mimic
+/trained_models/combined_model.pt
