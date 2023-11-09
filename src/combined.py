@@ -13,7 +13,7 @@ from torchcam.methods import GradCAM
 from torchcam.utils import overlay_mask
 from torchvision.io.image import read_image
 from torchvision.transforms.functional import normalize, resize, to_pil_image
-
+from settings import *
 
 #combined model class : architecture of the combined model to combine images and text sources
 class CombinedModel(nn.Module):

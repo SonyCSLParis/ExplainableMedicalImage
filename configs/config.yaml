@@ -4,7 +4,7 @@ opts:
     n_classes: 14
 
 image_model:
-    pretrained: False
+    pretrained: True
     hid_dim: 256
     dropout: 0.4
     optim: 'adam'
