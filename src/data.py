@@ -105,7 +105,8 @@ class MIMIC_CXR(Dataset):
         
         # Preprocess image
         img_filename = os.path.basename(sample['img'])
-        img_path = os.path.join(IMG_DIR_TRAIN, img_filename)
+        img_path = os.path.join(IMG_DIR_TEST, img_filename) # CHANG IF TRAIN
+        # print(IMG_DIR_TEST)
 
         image = Image.open(os.path.join(img_path)).convert("RGB")
         processed_image = self.process_image(image)

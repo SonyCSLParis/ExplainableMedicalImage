@@ -9,11 +9,11 @@ nlp = spacy.load("en_core_web_lg")
 ROOT_DIR = os.path.dirname(os.getcwd())
 
 # Printing the root directory
-print(ROOT_DIR)
+# print(ROOT_DIR)
 
 # Creating a path to the source code directory
 SRC_DIR = os.path.join(ROOT_DIR + '/src')
-print(SRC_DIR)
+# print(SRC_DIR)
 
 # Creating paths for various data directories
 DATA_DIR = os.path.join(ROOT_DIR + '/data')

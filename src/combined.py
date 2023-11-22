@@ -14,6 +14,11 @@ from torchcam.utils import overlay_mask
 from torchvision.io.image import read_image
 from torchvision.transforms.functional import normalize, resize, to_pil_image
 from settings import *
+from nltk.translate.bleu_score import sentence_bleu
+from nltk.translate.meteor_score import meteor_score
+from rouge import Rouge
+from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.meteor_score import meteor_score
 
 #combined model class : architecture of the combined model to combine images and text sources
 class CombinedModel(nn.Module):
@@ -21,7 +26,7 @@ class CombinedModel(nn.Module):
     # architecture and model components
     def __init__(self, args, word_to_idx, idx_to_word, device):
         super(CombinedModel, self).__init__()
-        
+
         # load pretrained image model
         self.image_model = ResNet50(args.image_model.hid_dim, args.opts.n_classes, args.image_model.dropout)
         self.image_model.load_state_dict(
@@ -36,19 +41,19 @@ class CombinedModel(nn.Module):
         self.patch_size = args.image_model.patch_size
         self.feat_size = args.image_model.hid_dim
 
-        # set word-to-index, index-to-word 
+        # set word-to-index, index-to-word
         self.word_to_idx = word_to_idx
         self.idx_to_word = idx_to_word
-        
+
         # define vocabularies
         vocab_size = len(word_to_idx)
-        
-        # define padding 
+
+        # define padding
         self.padding = torchvision.transforms.Pad(256, fill=0, padding_mode='constant')
 
         # define the embedding layer to encode textual inputs
         self.embedding = nn.Embedding(vocab_size, args.text_model.embedding_dim, padding_idx=0)
-        
+
         # LSTM for report generation
         self.lstm = nn.LSTM(args.text_model.embedding_dim, args.text_model.lstm_units, batch_first=True,
                             bidirectional=True)
@@ -59,11 +64,11 @@ class CombinedModel(nn.Module):
 
     # eextract and encode relevant patches in the images
     def extract_patch_features(self, images):
-        # get batch predictions and processes them to extract relevant features 
+        # get batch predictions and processes them to extract relevant features
         self.image_model.eval()
         # intermediate features and unbounded output
         features_image, logits = self.image_model(images.to(self.device))
-        # applies sigmoid function to get probabilities and round the values to the nearest int 
+        # applies sigmoid function to get probabilities and round the values to the nearest int
         preds = torch.round(torch.sigmoid(logits))
 
         #assign tensor to batch features, create a tensor with zeros and assign a size (num of images in batch and feature size)
@@ -101,7 +106,7 @@ class CombinedModel(nn.Module):
 
                     # Sum features extracted from single patches
                     features = features + features_j.cpu()
-                    
+
                 gc.collect()
 
             batch_features[i] = features
@@ -124,52 +129,58 @@ class CombinedModel(nn.Module):
 
         return out
 
-    # Generate a report for the given image
-    def generate_report(self, image, max_length=50):
+    def generate_report(self, image, max_length=50, temperature=0.2):
         result_caption = []
-
-        # Extract image features
+        generated_tokens = set()
         image_feats = self.extract_patch_features(image)
 
         with torch.no_grad():
             states = None
-
             start_idx = self.word_to_idx['START']
             end_idx = self.word_to_idx['END']
 
-            # Get index of the START token, which will be the first token of the generated report
             current_word = torch.tensor([start_idx]).unsqueeze(0).to(self.device)
 
-            # Set a max length for the output sequence. When the model is not trained, it may
-            # never generate the END token, giving rise to an infinite loop.
-            # We generate one token at a time until the END token is generated or until we reach
-            # the maximum sequence length.
-            for _ in range(max_length):
-                # We encode the sequence generated up to this moment
+            # Loop until a token other than 'END' is generated
+            while True:
                 text_feats = self.embedding(current_word)
-
-                # Get the probability distributions over words
                 hiddens, states = self.lstm(torch.cat((image_feats.unsqueeze(1), text_feats), dim=1))
                 output = self.linear(hiddens.squeeze(0))
-                output = F.softmax(output[-1, :], dim=0)
+                output = F.softmax(output[-1, :] / temperature, dim=0)
+                next_word = torch.multinomial(output, 1)
 
-                # Get the most probable next word
-                next_word = torch.argmax(output, dim=0)
+                if next_word.item() != end_idx:  # If the generated token is not 'END', break the loop
+                    result_caption.append(next_word.item())
+                    generated_tokens.add(next_word.item())  # Add the generated token to the set
+                    current_word = torch.cat((current_word, next_word.unsqueeze(0).to(self.device)), dim=1)
+                    break
 
-                # Append the word at the end of the generated sequence
+            for _ in range(1, max_length):  # Continue generating the sequence as before
+                text_feats = self.embedding(current_word)
+                hiddens, states = self.lstm(torch.cat((image_feats.unsqueeze(1), text_feats), dim=1))
+                output = self.linear(hiddens.squeeze(0))
+                output = F.softmax(output[-1, :] / temperature, dim=0)
+
+                # Filter the output probabilities to avoid already generated tokens
+                filtered_output = output.clone()
+                for token in generated_tokens:
+                    filtered_output[token] = 0.0
+                filtered_output /= filtered_output.sum()
+
+                next_word = torch.multinomial(filtered_output, 1)
                 result_caption.append(next_word.item())
 
-                # Check whether the generated word in the END token
                 if next_word.item() == end_idx:
                     break
 
-                current_word = torch.cat((current_word, torch.tensor([next_word]).unsqueeze(0).to(self.device)), dim=1)
+                generated_tokens.add(next_word.item())  # Add the generated token to the set
+                current_word = torch.cat((current_word, next_word.unsqueeze(0).to(self.device)), dim=1)
 
         out = [self.idx_to_word[idx] for idx in result_caption]
         return out
 
 
-# train mdoel 
+# train mdoel
 def train_combined_model(args, model, train_loader, valid_loader, vocab_size, device):
     # Define loss and optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.combined.lr)
@@ -193,7 +204,7 @@ def train_combined_model(args, model, train_loader, valid_loader, vocab_size, de
 
             loss = criterion(outputs, reports)
 
-            # if minimum loss is encountered, save the model 
+            # if minimum loss is encountered, save the model
             if loss < min_loss:
                 eta = 0
                 min_loss = loss
@@ -213,40 +224,70 @@ def train_combined_model(args, model, train_loader, valid_loader, vocab_size, de
             loss.backward()
             optimizer.step()
 
+            # Generate and print reports during training
+            for img, report in zip(imgs, reports):
+                img = img.unsqueeze(0)  # Add batch dimension
+                generated_report = CombinedModel.generate_report(model, img, max_length=100, temperature=0.2)
+                generated_report_text = " ".join(generated_report)
+                reference_report = [model.idx_to_word[x] for x in report.tolist()]
+                reference_report_text = " ".join(reference_report)
+
+                print("Generated Report:", generated_report_text)
+                print("Reference Report:", reference_report_text)
+
             gc.collect()
 
     return model
 
-# test model on test set 
+
 def test_combined_model(args, model, test_loader, word_to_idx, idx_to_word, device):
     model.eval()
     load = iter(test_loader)
-    num_reports = 1
+    num_reports = len(load)
 
-    tot_score = 0
+    bleu_scores = []
+    meteor_scores = []
+    rouge_scores =[]
 
     for i in range(num_reports):
         print('Report ', i)
 
         image, report, _ = next(load)
         image = image.to(device)
-        
+
         # generate a report using the model based on the provided image.
         generated_report = model.generate_report(image, max_length=100)
+        print("the generated model is:" + str(generated_report))
 
         # convert report to a list of words
         report = [idx_to_word[x] for x in report.squeeze().tolist()]
 
-        # compute bleu 
-        if len(generated_report) < len(report):
-            tot_score += bleu_score(generated_report, report[:len(generated_report)])
+        # compute BLEU
+        bleu = corpus_bleu([[report]], [generated_report])
+        bleu_scores.append(bleu)
+        print('BLEU Score:', bleu)
 
-        else:
-            tot_score += bleu_score(generated_report[:len(report)], report)
+        # compute METEOR
+        meteor = meteor_score([report], generated_report)
+        meteor_scores.append(meteor)
+        print('METEOR Score:', meteor)
+
+        # compute ROUGE
+        rouge = Rouge()
+        rouge_score = rouge.get_scores(" ".join(report), " ".join(generated_report))
+        rouge_scores.append(rouge_score)
+        print('ROUGE Score:', rouge_score)
 
         print('OUTPUT')
         print(" ".join(generated_report))
         print('REPORT')
         print(" ".join(report))
 
-    print("AVG BLEU SCORE:", tot_score / num_reports)
+    avg_bleu = sum(bleu_scores) / num_reports
+    avg_meteor = sum(meteor_scores) / num_reports
+    avg_rouge = sum(rouge_scores) / num_reports
+
+    print("AVG BLEU SCORE:", avg_bleu)
+    print("AVG METEOR SCORE:", avg_meteor)
+    print("AVG ROUGE SCORE:", avg_rouge)
+
