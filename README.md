@@ -20,8 +20,8 @@ Our contribution entails proposing a modified version of MedViLL for improved pe
 The Medvill architecture is a single BERT-based model that learns unified contextualized vision-language (VL) representation for both Vision Language Understanding (VLU) and Vision Language Generation (VLG). 
 Here are the relevant references : 
 
-- *Moon, J. H., Lee, H., Shin, W., Kim, Y. H., & Choi, E. (2022). Multi-modal understanding and generation for medical images and text via vision-language pre-training. IEEE Journal of Biomedical and Health Informatics, 26(12), 6070-6080.*
-- *https://github.com/SuperSupermoon/MedViLL/*
+- **Moon, J. H., Lee, H., Shin, W., Kim, Y. H., & Choi, E. (2022). Multi-modal understanding and generation for medical images and text via vision-language pre-training. IEEE Journal of Biomedical and Health Informatics, 26(12), 6070-6080.**
+- **https://github.com/SuperSupermoon/MedViLL/**
 
 ### Dependencies & Python Version
 
