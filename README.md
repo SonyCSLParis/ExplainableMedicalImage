@@ -13,7 +13,12 @@ We decided to use multi-modality for three main reasons :
 - *Vision and Language* : most used information in clinical domain 
 - *Multi-purpose joint representations of vision and language demonstrated effectiveness* for a series of downstream tasks (i.e. diagnosis classification, medical image-report retrieval, medical visual question answering, radiology report generation)
 
-## WIRN 2024 Model  
+
+In this repository we report the code for (1) the model submitted to WIRN 2024, corresponding and (2) to some preliminary experiments we did in training a multimodal model
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## (1) WIRN 2024 Model  
 Our contribution entails proposing a modified version of MedViLL for improved performance and interpretability, inspired by the approach outlined by Biswas et al. (2020). By integrating eXplainable Artificial Intelligence (XAI) instead of a separate model like Mask R-CNN, we enrich the decoder's representation with both global and region-specific image details, aiming to enhance report generation accuracy and mitigate noise introduced by separate models. This approach not only streamlines the network's parameters but also broadens its applicability across various models and tasks, eliminating the need for retraining or fine-tuning additional components like Mask R-CNN.
 
 ### Medvill : Acknowledgements
@@ -32,7 +37,9 @@ We used the MIMIC-CXR-JPG dataset which is a dataset wholly derived from MIMIC-C
 Original Dataset Reference: 
 - *Johnson, A., Lungren, M., Peng, Y., Lu, Z., Mark, R., Berkowitz, S., & Horng, S. (2024). MIMIC-CXR-JPG - chest radiographs with structured labels (version 2.1.0). PhysioNet. https://doi.org/10.13026/jsn5-t979.*
 
-## Preliminary Model  
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## (2) Preliminary Model  
 In this folder, we have our preliminary model and results of a multimodal model following this architecture
 <img width="1107" alt="Screenshot 2023-09-21 at 11 20 54" src="https://github.com/SonyCSLParis/ExplainableMedicalImage/assets/45358914/6da072fe-2d82-47b7-9fc0-45c27889034c">
 
